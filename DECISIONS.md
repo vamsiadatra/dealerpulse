@@ -26,3 +26,7 @@ If this were a multi-week sprint, here is exactly how I would evolve the product
 1. **Logistics & Vendor Accountability:** The dataset includes a `delay_reason` for vehicle delivery. I would build a secondary dashboard specifically for the Operations team that aggregates these reasons (e.g., "Transit Delay", "PDI Rework") to identify which specific logistics vendors or factory hubs are failing the dealership.
 2. **Row Level Security (RLS) & Auth:** Implement authentication so that when a Sales Rep logs in, they only see *their* stagnant leads, while the CEO gets the aggregate, God-mode view. 
 3. **Webhooks/Live Updates:** Migrate the API to use WebSockets or Server-Sent Events (SSE) so the dashboard updates in real-time the moment a deal is marked "Closed-Won" in the CRM.
+
+## 5. Interactive Drill-Downs and Pipeline Funnel
+* **The "Why":** A dashboard is only as good as its filtering capabilities. I implemented global dropdowns (Branch and Timeframe) that dynamically re-query the API. This satisfies the core requirement for drill-down capabilities while maintaining a clean UI.
+* **The Funnel Addition:** To hit the "Open-Ended" requirement, I added a "Pipeline Funnel" visualization. Instead of a standard revenue chart, showing the active volume of leads in each stage helps leadership immediately identify top-of-funnel or bottom-of-funnel weakness (e.g., if there are 50 leads in Test Drive but only 2 in Negotiation, there is a sales enablement problem).
