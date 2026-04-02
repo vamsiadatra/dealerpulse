@@ -30,3 +30,11 @@ If this were a multi-week sprint, here is exactly how I would evolve the product
 ## 5. Interactive Drill-Downs and Pipeline Funnel
 * **The "Why":** A dashboard is only as good as its filtering capabilities. I implemented global dropdowns (Branch and Timeframe) that dynamically re-query the API. This satisfies the core requirement for drill-down capabilities while maintaining a clean UI.
 * **The Funnel Addition:** To hit the "Open-Ended" requirement, I added a "Pipeline Funnel" visualization. Instead of a standard revenue chart, showing the active volume of leads in each stage helps leadership immediately identify top-of-funnel or bottom-of-funnel weakness (e.g., if there are 50 leads in Test Drive but only 2 in Negotiation, there is a sales enablement problem).
+
+  ## 6. Addressing the "Open-Ended Space"
+The prompt provided a list of 8 potential bonus features and explicitly advised: *"don't try to do all of them."* In a real-world product environment, feature bloat is a massive risk. I chose to exercise deliberate scope control by implementing only the features that provide the highest immediate ROI for a Branch Manager:
+1. **Lead aging alerts:** Handled natively by the "Critical Bottlenecks" engine.
+2. **Conversion funnel visualization:** Implemented as the Active Pipeline chart to show exact drop-off points.
+3. **Export/Sharing:** Added a 1-click CSV export for the bottlenecks table, acknowledging that many executives still rely heavily on spreadsheets for offline sharing.
+4. **What-if scenarios:** Added a lightweight "What-If Forecast" slider on the KPI ribbon to instantly demonstrate how minor conversion optimizations directly impact the bottom line.
+By focusing tightly on these four, I ensured the dashboard remained performant and focused purely on actionability without cluttering the UI.
