@@ -1,12 +1,9 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 @layer base {
   body {
     /* Sets a clean, off-white background for the whole app */
     @apply bg-slate-50 text-slate-900 antialiased;
-    /* Optional: Makes scrolling smooth across the application */
     scroll-behavior: smooth;
   }
 
@@ -17,7 +14,6 @@
 }
 
 /* --- Premium Custom Scrollbar --- */
-/* This makes the dashboard feel like a native desktop app instead of a webpage */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
