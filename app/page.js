@@ -6,17 +6,50 @@ import { IndianRupee, TrendingUp, Car, AlertTriangle, Clock, ArrowUpRight } from
 export default function Dashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null); // Added error state
 
   useEffect(() => {
     fetch('/api/metrics')
-      .then(res => res.json())
+      .then(async (res) => {
+        if (!res.ok) {
+          // If the API crashes, catch the error text
+          const text = await res.text();
+          throw new Error(`API Error (${res.status}): ${text}`);
+        }
+        return res.json();
+      })
       .then(json => {
+        // Validate the data actually exists before setting it
+        if (!json || typeof json.total_revenue === 'undefined') {
+          throw new Error("Received invalid data format from the backend.");
+        }
         setData(json);
         setLoading(false);
       })
-      .catch(err => console.error("Error fetching metrics:", err));
+      .catch(err => {
+        console.error("Fetch error:", err);
+        setError(err.message);
+        setLoading(false);
+      });
   }, []);
 
+  // --- ERROR UI: Shows a clean error box instead of crashing ---
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
+        <div className="bg-white p-8 rounded-2xl shadow-lg border border-rose-100 max-w-lg w-full text-center">
+          <AlertTriangle className="w-12 h-12 text-rose-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-slate-900 mb-2">Backend Connection Failed</h2>
+          <p className="text-slate-500 text-sm mb-6">The React frontend is running perfectly, but it couldn't fetch the data from the Python API. Here is the exact error:</p>
+          <div className="bg-slate-100 p-4 rounded-lg text-rose-600 text-xs text-left overflow-auto font-mono">
+            {error}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // --- LOADING UI ---
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
       <div className="animate-pulse flex flex-col items-center">
@@ -26,9 +59,9 @@ export default function Dashboard() {
     </div>
   );
 
+  // --- MAIN DASHBOARD UI ---
   return (
     <div className="min-h-screen bg-slate-50/50 pb-12 font-sans text-slate-900 selection:bg-indigo-100">
-      {/* Top Navigation Bar */}
       <nav className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-2">
@@ -44,13 +77,11 @@ export default function Dashboard() {
       </nav>
 
       <div className="max-w-7xl mx-auto px-6 mt-8 space-y-8">
-        
         <header>
           <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Pipeline Health</h2>
           <p className="text-sm text-slate-500 mt-1">Real-time performance metrics and active bottlenecks.</p>
         </header>
 
-        {/* KPI Cards - Upgraded with hover effects and better typography */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
           <StatCard title="Total Revenue" value={`₹${(data.total_revenue / 10000000).toFixed(2)} Cr`} icon={<IndianRupee className="text-emerald-600 w-5 h-5" />} trend="+12%" />
           <StatCard title="Vehicles Delivered" value={data.total_deliveries} icon={<Car className="text-blue-600 w-5 h-5" />} trend="+4%" />
@@ -59,7 +90,6 @@ export default function Dashboard() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Chart - Takes up 1/3 of the screen width on large screens */}
           <div className="bg-white p-6 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200 lg:col-span-1 flex flex-col">
             <div className="mb-6">
               <h3 className="text-base font-semibold text-slate-900">Revenue by Location</h3>
@@ -82,7 +112,6 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Stagnant Leads Table - Takes up 2/3 of the screen width */}
           <div className="bg-white rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200 overflow-hidden lg:col-span-2 flex flex-col">
             <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-white">
               <div>
@@ -126,7 +155,6 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );
@@ -139,7 +167,6 @@ function StatCard({ title, value, icon, subtitle, alert, trend }) {
         <div>
           <p className="text-sm font-medium text-slate-500 mb-1">{title}</p>
           <h3 className="text-3xl font-bold text-slate-900 tracking-tight">{value}</h3>
-          
           {trend && (
             <p className="text-xs font-medium text-emerald-600 mt-2 flex items-center gap-1">
               <ArrowUpRight className="w-3 h-3" /> {trend} vs last month
