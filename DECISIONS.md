@@ -1,16 +1,28 @@
-# DealerPulse: Engineering Decisions
+# DealerPulse: Engineering & Product Decisions
 
-## 1. What I Chose to Build & Why
-I built a full-stack dashboard featuring a React (Next.js) frontend and a Python (FastAPI) backend. The product is heavily biased toward *actionability*. Rather than simply visualizing total sales, the core feature is the **Bottleneck Engine**—a system that identifies active leads that haven't transitioned stages in over 7 days, allowing branch managers to immediately follow up with underperforming reps.
+## 1. The Core Philosophy: Action over Vanity
+When building dashboards for executives and managers, it is incredibly easy to fall into the trap of "vanity metrics"—showing a massive chart of total leads that looks pretty but offers zero actionable value. 
 
-## 2. Key Product Decisions and Tradeoffs
-* **Python API + Next.js UI:** While I could have parsed the JSON entirely on the client, I chose to build a proper FastAPI backend deployed via Vercel Serverless Functions. This separation of concerns creates a solid RESTful architecture that mimics how this app would work in production (where the API would eventually connect to a PostgreSQL database), keeping the frontend lightweight.
-* **JavaScript over TypeScript:** To prioritize deployment speed and rapid iteration for the take-home timeline, I opted for clean Javascript.
-* **Calculated "Now":** Because the dataset is synthetic, the Python backend dynamically calculates the "current date" based on the maximum `last_activity_at` timestamp to accurately measure stagnant leads without hardcoding dates.
+My primary goal was to build a tool that answers the CEO's most pressing question: **"Where are we losing money right now, and who do I need to call to fix it?"** To achieve this, I de-prioritized generic volume charts and heavily prioritized the **"Critical Bottlenecks"** engine. By calculating the exact number of days a lead has been stagnant in the pipeline (specifically those sitting untouched for >7 days), a Branch Manager can immediately open this dashboard, see that "Kavitha Sharma" has 3 leads stuck in negotiation, and intervene before the deals go cold.
 
-## 3. What I'd Build Next With More Time
-* **Logistics Analysis Tab:** I would build a secondary view analyzing the `delay_reason` field to find correlations between specific geographic branches and logistical supply-chain failures.
-* **Authentication & RLS:** Implementing Row Level Security so a Branch Manager only sees their branch's pipeline, while the CEO gets the aggregate view.
+## 2. Architectural Choices & Tradeoffs
 
-## 4. Interesting Data Patterns
-* A significant bottleneck occurs after the "Test Drive" phase. The data shows leads often sit idle in the "Negotiation" stage for days, indicating sales reps might need better pricing enablement tools or manager intervention to close deals faster.
+**Decision: Hybrid Architecture (Next.js React Frontend + FastAPI Python Backend)**
+* **The "Why":** While the dataset provided was small enough (~500 records) to process entirely on the client side via the browser, doing so would not reflect how I build production systems. I chose to split the stack, utilizing a lightweight Python FastAPI backend to handle the data wrangling and business logic, serving a clean REST API to a Next.js frontend. 
+* **The Tradeoff:** This added a slight layer of complexity to the Vercel deployment compared to a purely static site.
+* **The Benefit:** This architecture perfectly mimics a real-world SaaS environment. If the dataset scales to 500,000 leads tomorrow, the frontend remains completely unaffected. The Python backend can simply be pointed to a PostgreSQL database, and the application scales infinitely. 
+
+**Decision: Dynamic "Now" Calculation**
+* **The "Why":** Because the dataset is synthetic and anchored in late 2025, using the actual `Date.now()` would break all the time-based metrics (showing leads as stagnant for years). I engineered the backend to dynamically find the maximum `last_activity_at` timestamp in the dataset and use that as the "simulated present day." This ensures the logic holds up regardless of what dataset is injected into the system.
+
+## 3. Data Insights & Human Patterns
+While building the data aggregation logic, a few interesting business narratives emerged:
+1. **The "Test Drive to Negotiation" Chasm:** A significant portion of stagnant leads get stuck immediately after the test drive. This indicates a potential failure in follow-up processes. Sales reps might be excellent at greeting customers but are failing to create urgency in the pricing conversation. 
+2. **Resource Allocation:** Certain branches have high lead volumes but lower conversion rates. This isn't just a data point; it's a human problem. It suggests the reps in those branches might be overwhelmed, resulting in leads falling through the cracks. 
+
+## 4. What I Would Build With More Time
+If this were a multi-week sprint, here is exactly how I would evolve the product:
+
+1. **Logistics & Vendor Accountability:** The dataset includes a `delay_reason` for vehicle delivery. I would build a secondary dashboard specifically for the Operations team that aggregates these reasons (e.g., "Transit Delay", "PDI Rework") to identify which specific logistics vendors or factory hubs are failing the dealership.
+2. **Row Level Security (RLS) & Auth:** Implement authentication so that when a Sales Rep logs in, they only see *their* stagnant leads, while the CEO gets the aggregate, God-mode view. 
+3. **Webhooks/Live Updates:** Migrate the API to use WebSockets or Server-Sent Events (SSE) so the dashboard updates in real-time the moment a deal is marked "Closed-Won" in the CRM.
