@@ -2,6 +2,41 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  background-color: #f9fafb; /* Gray-50 to match the dashboard */
+@layer base {
+  body {
+    /* Sets a clean, off-white background for the whole app */
+    @apply bg-slate-50 text-slate-900 antialiased;
+    /* Optional: Makes scrolling smooth across the application */
+    scroll-behavior: smooth;
+  }
+
+  /* Customizes the highlight color when a user selects text */
+  ::selection {
+    @apply bg-indigo-500 text-white;
+  }
+}
+
+/* --- Premium Custom Scrollbar --- */
+/* This makes the dashboard feel like a native desktop app instead of a webpage */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 rounded-full border-[2px] border-solid border-transparent bg-clip-padding;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-slate-400;
+}
+
+/* Hide scrollbar for the table container but keep it scrollable */
+.overflow-x-auto {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
 }
