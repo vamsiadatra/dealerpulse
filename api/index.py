@@ -14,12 +14,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# def load_data():
+#     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+#     file_path = os.path.join(base_dir, 'dealership_data.json')
+#     with open(file_path, 'r') as f:
+#         return json.load(f)
 def load_data():
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    file_path = os.path.join(base_dir, 'dealership_data.json')
+    # Look for the file in the exact same directory as this script
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    file_path = os.path.join(current_dir, 'dealership_data.json')
     with open(file_path, 'r') as f:
         return json.load(f)
-
+        
 @app.get("/api/metrics")
 def get_metrics():
     data = load_data()
