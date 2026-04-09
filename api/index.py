@@ -37,7 +37,6 @@ def get_metrics(
     branches = data.get("branches", [])
     sales_reps = data.get("sales_reps", [])
     
-    # NEW: Add (BM) tag to the name if their role is branch_manager
     reps_dict = {
         rep['id']: f"{rep['name']} (BM)" if rep.get("role") == "branch_manager" else rep['name']
         for rep in sales_reps
@@ -91,9 +90,18 @@ def get_metrics(
     branch_perf = []
     for b in branches:
         b_leads = [l for l in time_delivered_leads if l.get("branch_id") == b["id"]]
+        
+        # NEW: Find the Branch Manager for this specific branch
+        bm_name = "Unassigned"
+        for rep in sales_reps:
+            if rep.get("branch_id") == b["id"] and rep.get("role") == "branch_manager":
+                bm_name = rep.get("name")
+                break
+
         branch_perf.append({
             "name": b["name"],
             "city": b["city"],
+            "manager": bm_name, # Passed to the frontend
             "revenue": sum([l.get("deal_value", 0) for l in b_leads])
         })
     top_branches = sorted(branch_perf, key=lambda x: x["revenue"], reverse=True)
@@ -151,7 +159,6 @@ def get_metrics(
         
     active_pipeline = sorted(active_pipeline, key=lambda x: x["days_stagnant"], reverse=True)
     
-    # EXCLUDE "Order Placed" from being flagged as a bottleneck!
     stagnant_leads = [l for l in active_pipeline if l["days_stagnant"] > 7 and l["stage"] != "Order Placed"][:10]
 
     funnel_stages = ["new", "contacted", "test_drive", "negotiation", "order_placed"]

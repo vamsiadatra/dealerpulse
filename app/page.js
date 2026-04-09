@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { IndianRupee, TrendingUp, Car, AlertTriangle, Clock, Filter, Calendar, Download, Zap, Users, Trophy, Medal, MapPin, List } from 'lucide-react';
+import { IndianRupee, TrendingUp, Car, AlertTriangle, Clock, Filter, Calendar, Download, Zap, Users, Trophy, Medal, MapPin, List, User } from 'lucide-react';
 
 export default function Dashboard() {
   const [data, setData] = useState(null);
@@ -70,12 +70,11 @@ export default function Dashboard() {
     ? data.filters.branches.find(b => b.id === branchFilter)?.name 
     : 'Global';
 
-  // Helper function for Leaderboard Badges
   const getBadgeStyle = (index) => {
-    if (index === 0) return 'bg-amber-200 text-amber-800'; // Gold
-    if (index === 1) return 'bg-slate-200 text-slate-700'; // Silver
-    if (index === 2) return 'bg-orange-200 text-orange-800'; // Bronze
-    return 'bg-slate-100 text-slate-500'; // 4th+ Standard
+    if (index === 0) return 'bg-amber-200 text-amber-800'; 
+    if (index === 1) return 'bg-slate-200 text-slate-700'; 
+    if (index === 2) return 'bg-orange-200 text-orange-800'; 
+    return 'bg-slate-100 text-slate-500'; 
   };
 
   if (error) return (
@@ -87,13 +86,13 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-slate-50/50 pb-12 font-sans text-slate-900 selection:bg-indigo-100">
       <nav className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
+        <div className="max-w-[1600px] w-full mx-auto flex justify-between items-center">
           <div className="flex items-center gap-2">
             <div className="bg-indigo-600 p-1.5 rounded-lg"><Car className="text-white w-5 h-5" /></div>
             <h1 className="text-xl font-bold tracking-tight">Dealer<span className="text-indigo-600">Pulse</span></h1>
           </div>
           <div className="text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full flex items-center gap-2">
-            <span className="text-slate-800 font-bold">v2</span>
+            <span className="text-slate-800 font-bold">v3</span>
             {data?.current_date && (
               <>
                 <span className="w-1 h-1 rounded-full bg-slate-300"></span>
@@ -104,16 +103,16 @@ export default function Dashboard() {
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto px-6 mt-8 space-y-6">
+      <div className="max-w-[1600px] w-full mx-auto px-6 mt-8 space-y-6">
         
-        <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <div>
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <div className="shrink-0">
             <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Pipeline Health</h2>
             <p className="text-sm text-slate-500 mt-1">Drill down into specific branches, reps, and timelines.</p>
           </div>
           
-          <div className="flex flex-wrap gap-3 items-center">
-            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+          <div className="flex flex-wrap xl:flex-nowrap gap-3 items-center w-full xl:w-auto xl:justify-end">
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 shrink-0">
               <Filter className="w-4 h-4 text-slate-500" />
               <select className="bg-transparent text-sm font-medium text-slate-700 outline-none cursor-pointer" value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)}>
                 <option value="all">All Branches</option>
@@ -122,7 +121,7 @@ export default function Dashboard() {
             </div>
 
             {branchFilter !== "all" && (
-              <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2 transition-all">
+              <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2 transition-all shrink-0">
                 <Users className="w-4 h-4 text-indigo-500" />
                 <select className="bg-transparent text-sm font-medium text-indigo-900 outline-none cursor-pointer" value={repFilter} onChange={(e) => setRepFilter(e.target.value)}>
                   <option value="all">All Reps in Branch</option>
@@ -133,7 +132,7 @@ export default function Dashboard() {
               </div>
             )}
 
-            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 shrink-0">
               <Calendar className="w-4 h-4 text-slate-500" />
               <select className="bg-transparent text-sm font-medium text-slate-700 outline-none cursor-pointer" value={timeFilter} onChange={(e) => setTimeFilter(e.target.value)}>
                 <option value="all">All Time</option>
@@ -148,10 +147,10 @@ export default function Dashboard() {
             </div>
 
             {timeFilter === 'custom' && (
-              <div className="flex items-center gap-2 animate-in fade-in zoom-in duration-200">
-                <input type="date" className="text-sm bg-white border border-slate-200 rounded-lg px-2 py-1.5 outline-none text-slate-700" value={startDate} onChange={e => setStartDate(e.target.value)} />
-                <span className="text-slate-400 text-sm">to</span>
-                <input type="date" className="text-sm bg-white border border-slate-200 rounded-lg px-2 py-1.5 outline-none text-slate-700" value={endDate} onChange={e => setEndDate(e.target.value)} />
+              <div className="flex items-center gap-2 animate-in fade-in zoom-in duration-200 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 shrink-0">
+                <input type="date" className="text-sm bg-transparent outline-none text-slate-700 cursor-pointer" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                <span className="text-slate-400 text-sm font-medium">to</span>
+                <input type="date" className="text-sm bg-transparent outline-none text-slate-700 cursor-pointer" value={endDate} onChange={e => setEndDate(e.target.value)} />
               </div>
             )}
           </div>
@@ -261,7 +260,6 @@ export default function Dashboard() {
                     <h3 className="text-base font-semibold text-slate-900">Ranked Dealerships (Global)</h3>
                   </div>
                 </div>
-                {/* Scrollable container so it fits dynamically */}
                 <div className="space-y-3 max-h-[260px] overflow-y-auto pr-2">
                   {!data.top_branches || data.top_branches.length === 0 ? (
                     <p className="text-sm text-slate-500">No data for selected timeframe.</p>
@@ -274,7 +272,11 @@ export default function Dashboard() {
                           </div>
                           <div>
                             <span className="font-medium text-slate-900 block">{branch.name}</span>
-                            <span className="text-[10px] text-slate-500 flex items-center gap-1 mt-0.5"><MapPin className="w-3 h-3"/>{branch.city}</span>
+                            {/* UPDATED: Added the Branch Manager with the User Icon */}
+                            <div className="flex flex-wrap items-center gap-3 mt-1">
+                              <span className="text-[10px] text-slate-500 flex items-center gap-1"><MapPin className="w-3 h-3"/>{branch.city}</span>
+                              <span className="text-[10px] text-indigo-500 font-medium flex items-center gap-1"><User className="w-3 h-3"/>{branch.manager}</span>
+                            </div>
                           </div>
                         </div>
                         <span className="font-semibold text-amber-700">₹{(branch.revenue / 10000000).toFixed(2)} Cr</span>
@@ -291,7 +293,6 @@ export default function Dashboard() {
                     <h3 className="text-base font-semibold text-slate-900">Ranked Sales Reps ({selectedBranchName})</h3>
                   </div>
                 </div>
-                {/* Scrollable container so it fits dynamically */}
                 <div className="space-y-3 max-h-[260px] overflow-y-auto pr-2">
                   {!data.top_reps || data.top_reps.length === 0 ? (
                     <p className="text-sm text-slate-500">No reps found for selected timeframe.</p>
