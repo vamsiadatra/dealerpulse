@@ -1,22 +1,34 @@
 "use client";
 import { useEffect, useState, useCallback } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { IndianRupee, TrendingUp, Car, AlertTriangle, Clock, Filter, Calendar, Download, Zap } from 'lucide-react';
+import { IndianRupee, TrendingUp, Car, AlertTriangle, Clock, Filter, Calendar, Download, Zap, Users, Trophy, Medal, MapPin } from 'lucide-react';
 
 export default function Dashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
+  // v2 Filter States
   const [branchFilter, setBranchFilter] = useState("all");
+  const [repFilter, setRepFilter] = useState("all");
   const [timeFilter, setTimeFilter] = useState("all");
-  
-  // What-If Scenario State
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [conversionLift, setConversionLift] = useState(5); 
+
+  // Reset Rep filter if Branch changes
+  useEffect(() => {
+    setRepFilter("all");
+  }, [branchFilter]);
 
   const fetchData = useCallback(() => {
     setLoading(true);
-    fetch(`/api/metrics?branch_id=${branchFilter}&timeframe=${timeFilter}`)
+    let url = `/api/metrics?branch_id=${branchFilter}&rep_id=${repFilter}&timeframe=${timeFilter}`;
+    if (timeFilter === 'custom' && startDate && endDate) {
+      url += `&start_date=${startDate}&end_date=${endDate}`;
+    }
+
+    fetch(url)
       .then(async (res) => {
         if (!res.ok) throw new Error(`API Error: ${await res.text()}`);
         return res.json();
@@ -30,21 +42,18 @@ export default function Dashboard() {
         setError(err.message);
         setLoading(false);
       });
-  }, [branchFilter, timeFilter]);
+  }, [branchFilter, repFilter, timeFilter, startDate, endDate]);
 
   useEffect(() => {
+    // Only block fetch if custom is selected but dates are missing
+    if (timeFilter === 'custom' && (!startDate || !endDate)) return;
     fetchData();
   }, [fetchData]);
 
-  // --- NEW: Export to CSV Function ---
   const handleExportCSV = () => {
     if (!data || !data.stagnant_leads.length) return;
     const headers = ["Customer", "Model", "Stage", "Sales Rep", "Days Stuck"];
-    const csvContent = [
-      headers.join(","),
-      ...data.stagnant_leads.map(l => `"${l.customer}","${l.model}","${l.stage}","${l.rep_name}",${l.days_stagnant}`)
-    ].join("\n");
-    
+    const csvContent = [headers.join(","), ...data.stagnant_leads.map(l => `"${l.customer}","${l.model}","${l.stage}","${l.rep_name}",${l.days_stagnant}`)].join("\n");
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -54,7 +63,7 @@ export default function Dashboard() {
 
   if (error) return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
-      <div className="bg-white p-8 rounded-2xl shadow-lg border border-rose-100 max-w-lg w-full text-center text-rose-600 font-mono text-sm">{error}</div>
+      <div className="bg-white p-8 rounded-2xl shadow-lg border border-rose-100 text-center text-rose-600 font-mono text-sm">{error}</div>
     </div>
   );
 
@@ -66,33 +75,65 @@ export default function Dashboard() {
             <div className="bg-indigo-600 p-1.5 rounded-lg"><Car className="text-white w-5 h-5" /></div>
             <h1 className="text-xl font-bold tracking-tight">Dealer<span className="text-indigo-600">Pulse</span></h1>
           </div>
-          <div className="text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full">Executive View</div>
+          <div className="text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full">FDE v2 Dashboard</div>
         </div>
       </nav>
 
       <div className="max-w-7xl mx-auto px-6 mt-8 space-y-6">
         
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+        {/* NEW: Advanced Global Filter Bar */}
+        <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
           <div>
             <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Pipeline Health</h2>
-            <p className="text-sm text-slate-500 mt-1">Filter by branch and timeframe to drill down into performance.</p>
+            <p className="text-sm text-slate-500 mt-1">Drill down into specific branches, reps, and timelines.</p>
           </div>
-          <div className="flex flex-wrap gap-3">
+          
+          <div className="flex flex-wrap gap-3 items-center">
+            {/* Branch Filter */}
             <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
               <Filter className="w-4 h-4 text-slate-500" />
               <select className="bg-transparent text-sm font-medium text-slate-700 outline-none cursor-pointer" value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)}>
                 <option value="all">All Branches</option>
-                {data?.filters?.branches.map(b => <option key={b.id} value={b.id}>{b.name} ({b.city})</option>)}
+                {data?.filters?.branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
               </select>
             </div>
+
+            {/* Cascading Rep Filter */}
+            {branchFilter !== "all" && (
+              <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2 transition-all">
+                <Users className="w-4 h-4 text-indigo-500" />
+                <select className="bg-transparent text-sm font-medium text-indigo-900 outline-none cursor-pointer" value={repFilter} onChange={(e) => setRepFilter(e.target.value)}>
+                  <option value="all">All Reps in Branch</option>
+                  {data?.filters?.reps.filter(r => r.branch_id === branchFilter).map(r => (
+                    <option key={r.id} value={r.id}>{r.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Time Filter */}
             <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
               <Calendar className="w-4 h-4 text-slate-500" />
               <select className="bg-transparent text-sm font-medium text-slate-700 outline-none cursor-pointer" value={timeFilter} onChange={(e) => setTimeFilter(e.target.value)}>
                 <option value="all">All Time</option>
-                <option value="90">Last 90 Days</option>
+                <option value="today">Today</option>
+                <option value="this_week">This Week</option>
+                <option value="this_month">This Month</option>
+                <option value="this_quarter">This Quarter</option>
                 <option value="30">Last 30 Days</option>
+                <option value="90">Last 90 Days</option>
+                <option value="custom">Custom Range...</option>
               </select>
             </div>
+
+            {/* Custom Date Inputs */}
+            {timeFilter === 'custom' && (
+              <div className="flex items-center gap-2 animate-in fade-in zoom-in duration-200">
+                <input type="date" className="text-sm bg-white border border-slate-200 rounded-lg px-2 py-1.5 outline-none text-slate-700" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                <span className="text-slate-400 text-sm">to</span>
+                <input type="date" className="text-sm bg-white border border-slate-200 rounded-lg px-2 py-1.5 outline-none text-slate-700" value={endDate} onChange={e => setEndDate(e.target.value)} />
+              </div>
+            )}
           </div>
         </div>
 
@@ -100,36 +141,29 @@ export default function Dashboard() {
 
         {data && (
           <>
+            {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5">
               <StatCard title="Total Revenue" value={`₹${(data.total_revenue / 10000000).toFixed(2)} Cr`} icon={<IndianRupee className="text-emerald-600 w-5 h-5" />} />
               <StatCard title="Deliveries" value={data.total_deliveries} icon={<Car className="text-blue-600 w-5 h-5" />} />
-              <StatCard title="Conversion" value={`${data.conversion_rate}%`} icon={<TrendingUp className="text-indigo-600 w-5 h-5" />} />
+              <StatCard title="Win Rate" value={`${data.conversion_rate}%`} subtitle="Closed-Won Deals" icon={<TrendingUp className="text-indigo-600 w-5 h-5" />} />
               <StatCard title="Bottlenecks" value={data.stagnant_leads.length} icon={<AlertTriangle className="text-rose-600 w-5 h-5" />} alert />
               
-              {/* NEW: What-If Scenario Card */}
               <div className="bg-gradient-to-br from-indigo-50 to-white p-5 rounded-2xl border border-indigo-100 shadow-sm relative overflow-hidden">
-                <div className="flex justify-between items-start mb-2">
-                  <p className="text-xs font-semibold text-indigo-600 flex items-center gap-1"><Zap className="w-3 h-3" /> WHAT-IF FORECAST</p>
-                </div>
-                <p className="text-xl font-bold text-slate-900 tracking-tight">
-                  +₹{((data.total_revenue * (conversionLift / 100)) / 100000).toFixed(1)} L
-                </p>
-                <p className="text-xs text-slate-500 mt-1">If conversion improves by {conversionLift}%</p>
-                <input 
-                  type="range" min="1" max="15" value={conversionLift} 
-                  onChange={(e) => setConversionLift(e.target.value)}
-                  className="w-full mt-3 accent-indigo-600"
-                />
+                <p className="text-xs font-semibold text-indigo-600 flex items-center gap-1 mb-2"><Zap className="w-3 h-3" /> WHAT-IF FORECAST</p>
+                <p className="text-xl font-bold text-slate-900 tracking-tight">+₹{((data.total_revenue * (conversionLift / 100)) / 100000).toFixed(1)} L</p>
+                <p className="text-xs text-slate-500 mt-1">If win rate improves by {conversionLift}%</p>
+                <input type="range" min="1" max="15" value={conversionLift} onChange={(e) => setConversionLift(e.target.value)} className="w-full mt-3 accent-indigo-600" />
               </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Funnel */}
               <div className="bg-white p-6 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200 lg:col-span-1 flex flex-col">
                 <div className="mb-6">
                   <h3 className="text-base font-semibold text-slate-900">Active Pipeline Funnel</h3>
-                  <p className="text-xs text-slate-500 mt-1">Current volume of active leads</p>
+                  <p className="text-xs text-slate-500 mt-1">Where are leads dropping off?</p>
                 </div>
-                <div className="flex-grow w-full min-h-[300px]">
+                <div className="flex-grow w-full min-h-[250px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={data.pipeline_funnel} layout="vertical" margin={{ left: 10, right: 10 }}>
                       <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
@@ -144,18 +178,15 @@ export default function Dashboard() {
                 </div>
               </div>
 
+              {/* Bottlenecks Table */}
               <div className="bg-white rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200 overflow-hidden lg:col-span-2 flex flex-col">
                 <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center">
                   <div>
                     <h3 className="text-base font-semibold text-slate-900">Critical Bottlenecks</h3>
-                    <p className="text-xs text-slate-500 mt-1">Leads with no movement in over a week.</p>
+                    <p className="text-xs text-slate-500 mt-1">Leads going cold (>7 days idle).</p>
                   </div>
-                  {/* NEW: Export to CSV Button */}
                   <div className="flex gap-2">
-                    <button 
-                      onClick={handleExportCSV}
-                      className="inline-flex items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-600 text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 transition-colors"
-                    >
+                    <button onClick={handleExportCSV} className="inline-flex items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-600 text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 transition-colors">
                       <Download className="w-3.5 h-3.5" /> Export CSV
                     </button>
                     <span className="inline-flex items-center gap-1.5 bg-rose-50 text-rose-700 text-xs font-semibold px-3 py-1.5 rounded-lg border border-rose-100">
@@ -168,7 +199,7 @@ export default function Dashboard() {
                     <thead className="bg-slate-50/50 text-slate-500 font-medium border-b border-slate-100">
                       <tr>
                         <th className="px-6 py-4">Customer</th>
-                        <th className="px-6 py-4">Current Stage</th>
+                        <th className="px-6 py-4">Stage</th>
                         <th className="px-6 py-4">Assigned Rep</th>
                         <th className="px-6 py-4 text-right">Time Stuck</th>
                       </tr>
@@ -190,7 +221,55 @@ export default function Dashboard() {
                   </table>
                 </div>
               </div>
+            </div>
 
+            {/* NEW: Leaderboard Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
+              
+              <div className="bg-white p-6 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200">
+                <div className="flex items-center gap-2 mb-4">
+                  <Trophy className="w-5 h-5 text-amber-500" />
+                  <h3 className="text-base font-semibold text-slate-900">Top Dealership (Revenue)</h3>
+                </div>
+                {data.top_branch ? (
+                  <div className="bg-amber-50 border border-amber-100 rounded-xl p-5 flex justify-between items-center">
+                    <div>
+                      <h4 className="text-xl font-bold text-slate-900">{data.top_branch.name}</h4>
+                      <p className="text-sm text-slate-500 flex items-center gap-1 mt-1"><MapPin className="w-3.5 h-3.5" /> {data.top_branch.city}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs font-semibold text-amber-600 uppercase tracking-wider mb-1">Generated</p>
+                      <p className="text-2xl font-bold text-amber-700">₹{(data.top_branch.revenue / 10000000).toFixed(2)} Cr</p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-500">No data for selected filters.</p>
+                )}
+              </div>
+
+              <div className="bg-white p-6 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200">
+                <div className="flex items-center gap-2 mb-4">
+                  <Medal className="w-5 h-5 text-indigo-500" />
+                  <h3 className="text-base font-semibold text-slate-900">Top Sales Reps (Revenue)</h3>
+                </div>
+                <div className="space-y-3">
+                  {data.top_reps.length === 0 ? (
+                    <p className="text-sm text-slate-500">No reps found for selected filters.</p>
+                  ) : (
+                    data.top_reps.map((rep, index) => (
+                      <div key={index} className="flex justify-between items-center p-3 rounded-xl bg-slate-50 border border-slate-100">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-amber-200 text-amber-800' : index === 1 ? 'bg-slate-200 text-slate-700' : 'bg-orange-200 text-orange-800'}`}>
+                            {index + 1}
+                          </div>
+                          <span className="font-medium text-slate-900">{rep.name}</span>
+                        </div>
+                        <span className="font-semibold text-indigo-600">₹{(rep.revenue / 100000).toFixed(1)} L</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
           </>
         )}
@@ -206,7 +285,7 @@ function StatCard({ title, value, icon, subtitle, alert }) {
         <div>
           <p className="text-xs font-medium text-slate-500 mb-1 uppercase tracking-wider">{title}</p>
           <h3 className="text-2xl font-bold text-slate-900 tracking-tight">{value}</h3>
-          {subtitle && <p className="text-[10px] font-medium text-rose-500 mt-1">{subtitle}</p>}
+          {subtitle && <p className="text-[10px] font-medium text-slate-400 mt-1">{subtitle}</p>}
         </div>
         <div className={`p-2.5 rounded-xl ${alert ? 'bg-rose-50' : 'bg-slate-50'}`}>{icon}</div>
       </div>
