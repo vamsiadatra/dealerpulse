@@ -333,3 +333,4 @@ function StatCard({ title, value, icon, subtitle, alert }) {
     </div>
   );
 }
+
