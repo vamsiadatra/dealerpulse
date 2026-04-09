@@ -82,7 +82,6 @@ def get_metrics(
 
     time_delivered_leads = [l for l in time_filtered_leads if l["status"] == "delivered"]
     
-    # Ranked Branches (ALWAYS GLOBAL)
     branch_perf = []
     for b in branches:
         b_leads = [l for l in time_delivered_leads if l.get("branch_id") == b["id"]]
@@ -93,7 +92,6 @@ def get_metrics(
         })
     top_branches = sorted(branch_perf, key=lambda x: x["revenue"], reverse=True)[:3]
 
-    # Ranked Reps (FILTERED BY BRANCH)
     rep_leaderboard_leads = time_delivered_leads
     if branch_id != "all":
         rep_leaderboard_leads = [l for l in time_delivered_leads if l.get("branch_id") == branch_id]
@@ -122,22 +120,25 @@ def get_metrics(
     total_revenue = sum([l.get("deal_value", 0) for l in delivered_leads])
     conversion_rate = (len(delivered_leads) / resolved_count * 100) if resolved_count > 0 else 0
 
-    stagnant_leads = []
+    # NEW: Generate complete active pipeline details
+    active_pipeline = []
     active_leads = [l for l in fully_filtered_leads if l["status"] not in ["delivered", "lost"]]
     
     for lead in active_leads:
         last_activity = datetime.fromisoformat(lead["last_activity_at"].replace("Z", ""))
         days_stagnant = (simulated_now - last_activity).days
-        if days_stagnant > 7:
-            stagnant_leads.append({
-                "id": lead["id"],
-                "customer": lead.get("customer_name", "Unknown"),
-                "model": lead.get("model_interested", "Unknown"),
-                "stage": lead["status"].replace("_", " ").title(),
-                "rep_name": reps_dict.get(lead["assigned_to"], "Unknown"),
-                "days_stagnant": days_stagnant
-            })
-    stagnant_leads = sorted(stagnant_leads, key=lambda x: x["days_stagnant"], reverse=True)[:10]
+        active_pipeline.append({
+            "id": lead["id"],
+            "customer": lead.get("customer_name", "Unknown"),
+            "model": lead.get("model_interested", "Unknown"),
+            "stage": lead["status"].replace("_", " ").title(),
+            "rep_name": reps_dict.get(lead["assigned_to"], "Unknown"),
+            "days_stagnant": days_stagnant,
+            "value": lead.get("deal_value", 0)
+        })
+        
+    active_pipeline = sorted(active_pipeline, key=lambda x: x["days_stagnant"], reverse=True)
+    stagnant_leads = [l for l in active_pipeline if l["days_stagnant"] > 7][:10]
 
     funnel_stages = ["new", "contacted", "test_drive", "negotiation", "order_placed"]
     pipeline_funnel = [{"stage": s.replace("_", " ").title(), "count": len([l for l in active_leads if l["status"] == s])} for s in funnel_stages]
@@ -149,6 +150,7 @@ def get_metrics(
         "conversion_rate": round(conversion_rate, 1),
         "total_deliveries": len(delivered_leads),
         "stagnant_leads": stagnant_leads,
+        "active_pipeline": active_pipeline,
         "pipeline_funnel": pipeline_funnel,
         "top_branches": top_branches,
         "top_reps": top_reps

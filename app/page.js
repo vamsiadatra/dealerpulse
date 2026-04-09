@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { IndianRupee, TrendingUp, Car, AlertTriangle, Clock, Filter, Calendar, Download, Zap, Users, Trophy, Medal, MapPin } from 'lucide-react';
+import { IndianRupee, TrendingUp, Car, AlertTriangle, Clock, Filter, Calendar, Download, Zap, Users, Trophy, Medal, MapPin, List } from 'lucide-react';
 
 export default function Dashboard() {
   const [data, setData] = useState(null);
@@ -50,18 +50,23 @@ export default function Dashboard() {
     fetchData();
   }, [fetchData, timeFilter, startDate, endDate]);
 
+  // Logic to dynamically change the table behavior
+  const isRepView = repFilter !== "all";
+  const tableData = isRepView ? data?.active_pipeline : data?.stagnant_leads;
+  const tableTitle = isRepView ? "Complete Active Pipeline" : "Critical Bottlenecks";
+  const tableSubtitle = isRepView ? "Full inventory of active deals for this representative." : "Leads going cold (>7 days idle).";
+
   const handleExportCSV = () => {
-    if (!data || !data.stagnant_leads || !data.stagnant_leads.length) return;
+    if (!tableData || !tableData.length) return;
     const headers = ["Customer", "Model", "Stage", "Sales Rep", "Days Stuck"];
-    const csvContent = [headers.join(","), ...data.stagnant_leads.map(l => `"${l.customer}","${l.model}","${l.stage}","${l.rep_name}",${l.days_stagnant}`)].join("\n");
+    const csvContent = [headers.join(","), ...tableData.map(l => `"${l.customer}","${l.model}","${l.stage}","${l.rep_name}",${l.days_stagnant}`)].join("\n");
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `stagnant_leads_${data.current_date || 'export'}.csv`;
+    link.download = `${isRepView ? 'active_pipeline' : 'stagnant_leads'}_${data.current_date || 'export'}.csv`;
     link.click();
   };
 
-  // Determine dynamic title for the Rep Leaderboard
   const selectedBranchName = branchFilter !== 'all' && data?.filters?.branches 
     ? data.filters.branches.find(b => b.id === branchFilter)?.name 
     : 'Global';
@@ -81,7 +86,7 @@ export default function Dashboard() {
             <h1 className="text-xl font-bold tracking-tight">Dealer<span className="text-indigo-600">Pulse</span></h1>
           </div>
           <div className="text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full flex items-center gap-2">
-            <span className="text-slate-800 font-bold">v2</span>
+            <span className="text-slate-800 font-bold">v3</span>
             {data?.current_date && (
               <>
                 <span className="w-1 h-1 rounded-full bg-slate-300"></span>
@@ -184,19 +189,27 @@ export default function Dashboard() {
                 </div>
               </div>
 
+              {/* DYNAMIC TABLE: Changes based on Rep vs Global View */}
               <div className="bg-white rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200 overflow-hidden lg:col-span-2 flex flex-col">
                 <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center">
                   <div>
-                    <h3 className="text-base font-semibold text-slate-900">Critical Bottlenecks</h3>
-                    <p className="text-xs text-slate-500 mt-1">Leads going cold (&gt;7 days idle).</p>
+                    <h3 className="text-base font-semibold text-slate-900">{tableTitle}</h3>
+                    <p className="text-xs text-slate-500 mt-1">{tableSubtitle}</p>
                   </div>
                   <div className="flex gap-2">
                     <button onClick={handleExportCSV} className="inline-flex items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-600 text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 transition-colors">
                       <Download className="w-3.5 h-3.5" /> Export CSV
                     </button>
-                    <span className="inline-flex items-center gap-1.5 bg-rose-50 text-rose-700 text-xs font-semibold px-3 py-1.5 rounded-lg border border-rose-100">
-                      <Clock className="w-3.5 h-3.5" /> High Priority
-                    </span>
+                    {!isRepView && (
+                      <span className="inline-flex items-center gap-1.5 bg-rose-50 text-rose-700 text-xs font-semibold px-3 py-1.5 rounded-lg border border-rose-100">
+                        <Clock className="w-3.5 h-3.5" /> High Priority
+                      </span>
+                    )}
+                    {isRepView && (
+                      <span className="inline-flex items-center gap-1.5 bg-indigo-50 text-indigo-700 text-xs font-semibold px-3 py-1.5 rounded-lg border border-indigo-100">
+                        <List className="w-3.5 h-3.5" /> All Active
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="overflow-x-auto flex-grow">
@@ -206,19 +219,24 @@ export default function Dashboard() {
                         <th className="px-6 py-4">Customer</th>
                         <th className="px-6 py-4">Stage</th>
                         <th className="px-6 py-4">Assigned Rep</th>
-                        <th className="px-6 py-4 text-right">Time Stuck</th>
+                        <th className="px-6 py-4 text-right">Time Idle</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {!data.stagnant_leads || data.stagnant_leads.length === 0 ? (
-                        <tr><td colSpan="4" className="text-center py-8 text-slate-500">No stagnant leads found. Great job!</td></tr>
+                      {!tableData || tableData.length === 0 ? (
+                        <tr><td colSpan="4" className="text-center py-8 text-slate-500">No active deals found for this selection.</td></tr>
                       ) : (
-                        data.stagnant_leads.map((lead) => (
-                          <tr key={lead.id} className="hover:bg-slate-50/80 transition-colors">
-                            <td className="px-6 py-4 font-medium text-slate-900">{lead.customer} <div className="text-xs text-slate-400 font-normal">{lead.model}</div></td>
+                        tableData.map((lead) => (
+                          <tr key={lead.id} className="hover:bg-slate-50/80 transition-colors group">
+                            <td className="px-6 py-4 font-medium text-slate-900">
+                              {lead.customer} 
+                              <div className="text-xs text-slate-400 font-normal">{lead.model} • ₹{(lead.value / 100000).toFixed(1)}L</div>
+                            </td>
                             <td className="px-6 py-4"><span className="px-2.5 py-1 rounded-md text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200/50">{lead.stage}</span></td>
                             <td className="px-6 py-4 text-slate-600">{lead.rep_name}</td>
-                            <td className="px-6 py-4 text-right font-semibold text-rose-600">{lead.days_stagnant} days</td>
+                            <td className={`px-6 py-4 text-right font-semibold ${lead.days_stagnant > 7 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                              {lead.days_stagnant} days
+                            </td>
                           </tr>
                         ))
                       )}
