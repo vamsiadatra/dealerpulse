@@ -38,22 +38,20 @@ def get_metrics(
     sales_reps = data.get("sales_reps", [])
     reps_dict = {rep['id']: rep['name'] for rep in sales_reps}
     
-    # 1. FIXED: True "Current Date" anchor from metadata
+    # 1. Establish Current Date from metadata
     generated_at_str = data.get("metadata", {}).get("generated_at")
     if generated_at_str:
         simulated_now = datetime.fromisoformat(generated_at_str.replace("Z", ""))
     else:
         simulated_now = datetime.now()
-
-    filtered_leads = all_leads
-    
-    # 2. NEW: Drill-Down Filters (Branch -> Rep)
-    if branch_id != "all":
-        filtered_leads = [l for l in filtered_leads if l.get("branch_id") == branch_id]
-    if rep_id != "all":
-        filtered_leads = [l for l in filtered_leads if l.get("assigned_to") == rep_id]
         
-    # 3. NEW: Expanded Timeframe Logic
+    formatted_current_date = simulated_now.strftime("%b %d, %Y")
+
+    # ==========================================
+    # FILTER STAGE 1: TIME-ONLY (For Leaderboards)
+    # ==========================================
+    time_filtered_leads = all_leads
+    
     if timeframe != "all":
         cutoff_start = None
         cutoff_end = simulated_now
@@ -77,23 +75,56 @@ def get_metrics(
             
         if cutoff_start:
             temp_leads = []
-            for l in filtered_leads:
+            for l in time_filtered_leads:
                 l_date = datetime.fromisoformat(l["last_activity_at"].replace("Z", ""))
                 if cutoff_start <= l_date <= cutoff_end:
                     temp_leads.append(l)
-            filtered_leads = temp_leads
+            time_filtered_leads = temp_leads
 
-    # 4. FIXED: True Conversion Rate Math (Closed-Won Logic)
-    delivered_leads = [l for l in filtered_leads if l["status"] == "delivered"]
-    lost_leads = [l for l in filtered_leads if l["status"] == "lost"]
-    resolved_count = len(delivered_leads) + len(lost_leads) # Only count deals that have finished
+    # Calculate Leaderboards strictly on TIME, immune to branch/rep filters
+    time_delivered_leads = [l for l in time_filtered_leads if l["status"] == "delivered"]
+    
+    # Ranked Branches (Top 3)
+    branch_perf = []
+    for b in branches:
+        b_leads = [l for l in time_delivered_leads if l.get("branch_id") == b["id"]]
+        branch_perf.append({
+            "name": b["name"],
+            "city": b["city"],
+            "revenue": sum([l.get("deal_value", 0) for l in b_leads])
+        })
+    top_branches = sorted(branch_perf, key=lambda x: x["revenue"], reverse=True)[:3]
+
+    # Ranked Reps (Top 3)
+    rep_perf = {}
+    for l in time_delivered_leads:
+        r_id = l.get("assigned_to")
+        rep_perf[r_id] = rep_perf.get(r_id, 0) + l.get("deal_value", 0)
+    top_reps_list = [{"name": reps_dict.get(r_id, "Unknown"), "revenue": rev} for r_id, rev in rep_perf.items()]
+    top_reps = sorted(top_reps_list, key=lambda x: x["revenue"], reverse=True)[:3]
+
+
+    # ==========================================
+    # FILTER STAGE 2: BRANCH & REP (For Drill-down KPIs)
+    # ==========================================
+    fully_filtered_leads = time_filtered_leads
+    
+    if branch_id != "all":
+        fully_filtered_leads = [l for l in fully_filtered_leads if l.get("branch_id") == branch_id]
+    if rep_id != "all":
+        fully_filtered_leads = [l for l in fully_filtered_leads if l.get("assigned_to") == rep_id]
+        
+    # Calculate Drill-Down KPIs
+    delivered_leads = [l for l in fully_filtered_leads if l["status"] == "delivered"]
+    lost_leads = [l for l in fully_filtered_leads if l["status"] == "lost"]
+    resolved_count = len(delivered_leads) + len(lost_leads)
     
     total_revenue = sum([l.get("deal_value", 0) for l in delivered_leads])
     conversion_rate = (len(delivered_leads) / resolved_count * 100) if resolved_count > 0 else 0
 
     # Bottlenecks
     stagnant_leads = []
-    active_leads = [l for l in filtered_leads if l["status"] not in ["delivered", "lost"]]
+    active_leads = [l for l in fully_filtered_leads if l["status"] not in ["delivered", "lost"]]
     
     for lead in active_leads:
         last_activity = datetime.fromisoformat(lead["last_activity_at"].replace("Z", ""))
@@ -109,39 +140,18 @@ def get_metrics(
             })
     stagnant_leads = sorted(stagnant_leads, key=lambda x: x["days_stagnant"], reverse=True)[:10]
 
-    # NEW: Leaderboard & Performance Metrics
-    # Top Branch
-    branch_perf = []
-    for b in branches:
-        b_leads = [l for l in delivered_leads if l.get("branch_id") == b["id"]]
-        branch_perf.append({
-            "name": b["name"],
-            "city": b["city"],
-            "revenue": sum([l.get("deal_value", 0) for l in b_leads])
-        })
-    top_branch = sorted(branch_perf, key=lambda x: x["revenue"], reverse=True)[0] if branch_perf else None
-
-    # Top 3 Reps
-    rep_perf = {}
-    for l in delivered_leads:
-        r_id = l.get("assigned_to")
-        rep_perf[r_id] = rep_perf.get(r_id, 0) + l.get("deal_value", 0)
-        
-    top_reps_list = [{"name": reps_dict.get(r_id, "Unknown"), "revenue": rev} for r_id, rev in rep_perf.items()]
-    top_reps = sorted(top_reps_list, key=lambda x: x["revenue"], reverse=True)[:3]
-
     # Funnel
     funnel_stages = ["new", "contacted", "test_drive", "negotiation", "order_placed"]
     pipeline_funnel = [{"stage": s.replace("_", " ").title(), "count": len([l for l in active_leads if l["status"] == s])} for s in funnel_stages]
 
     return {
+        "current_date": formatted_current_date,
         "filters": {"branches": branches, "reps": sales_reps},
         "total_revenue": total_revenue,
         "conversion_rate": round(conversion_rate, 1),
         "total_deliveries": len(delivered_leads),
         "stagnant_leads": stagnant_leads,
-        "branch_performance": sorted(branch_perf, key=lambda x: x["revenue"], reverse=True),
         "pipeline_funnel": pipeline_funnel,
-        "top_branch": top_branch,
+        "top_branches": top_branches,
         "top_reps": top_reps
     }

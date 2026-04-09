@@ -8,7 +8,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // v2 Filter States
+  // Filter States
   const [branchFilter, setBranchFilter] = useState("all");
   const [repFilter, setRepFilter] = useState("all");
   const [timeFilter, setTimeFilter] = useState("all");
@@ -16,7 +16,6 @@ export default function Dashboard() {
   const [endDate, setEndDate] = useState("");
   const [conversionLift, setConversionLift] = useState(5); 
 
-  // Reset Rep filter if Branch changes
   useEffect(() => {
     setRepFilter("all");
   }, [branchFilter]);
@@ -34,7 +33,6 @@ export default function Dashboard() {
         return res.json();
       })
       .then(json => {
-        // BULLETPROOF CHECK: Ensure the API returned exactly what we need before rendering
         if (!json || typeof json.total_revenue === 'undefined' || !json.filters) {
           throw new Error("Received incomplete data from the backend.");
         }
@@ -49,7 +47,6 @@ export default function Dashboard() {
   }, [branchFilter, repFilter, timeFilter, startDate, endDate]);
 
   useEffect(() => {
-    // Only block fetch if custom is selected but dates are missing
     if (timeFilter === 'custom' && (!startDate || !endDate)) return;
     fetchData();
   }, [fetchData, timeFilter, startDate, endDate]);
@@ -61,11 +58,10 @@ export default function Dashboard() {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `stagnant_leads_${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = `stagnant_leads_${data.current_date || 'export'}.csv`;
     link.click();
   };
 
-  // Graceful Error UI
   if (error) return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
       <div className="bg-white p-8 rounded-2xl shadow-lg border border-rose-100 text-center text-rose-600 font-mono text-sm">{error}</div>
@@ -80,13 +76,21 @@ export default function Dashboard() {
             <div className="bg-indigo-600 p-1.5 rounded-lg"><Car className="text-white w-5 h-5" /></div>
             <h1 className="text-xl font-bold tracking-tight">Dealer<span className="text-indigo-600">Pulse</span></h1>
           </div>
-          <div className="text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full">FDE v2 Dashboard</div>
+          {/* UPDATED: Dynamic Date Badge */}
+          <div className="text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full flex items-center gap-2">
+            <span className="text-slate-800 font-bold">v2</span>
+            {data?.current_date && (
+              <>
+                <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                <span>{data.current_date}</span>
+              </>
+            )}
+          </div>
         </div>
       </nav>
 
       <div className="max-w-7xl mx-auto px-6 mt-8 space-y-6">
         
-        {/* Advanced Global Filter Bar */}
         <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
           <div>
             <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Pipeline Health</h2>
@@ -94,7 +98,6 @@ export default function Dashboard() {
           </div>
           
           <div className="flex flex-wrap gap-3 items-center">
-            {/* Branch Filter */}
             <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
               <Filter className="w-4 h-4 text-slate-500" />
               <select className="bg-transparent text-sm font-medium text-slate-700 outline-none cursor-pointer" value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)}>
@@ -103,7 +106,6 @@ export default function Dashboard() {
               </select>
             </div>
 
-            {/* Cascading Rep Filter */}
             {branchFilter !== "all" && (
               <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2 transition-all">
                 <Users className="w-4 h-4 text-indigo-500" />
@@ -116,7 +118,6 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* Time Filter */}
             <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
               <Calendar className="w-4 h-4 text-slate-500" />
               <select className="bg-transparent text-sm font-medium text-slate-700 outline-none cursor-pointer" value={timeFilter} onChange={(e) => setTimeFilter(e.target.value)}>
@@ -131,7 +132,6 @@ export default function Dashboard() {
               </select>
             </div>
 
-            {/* Custom Date Inputs */}
             {timeFilter === 'custom' && (
               <div className="flex items-center gap-2 animate-in fade-in zoom-in duration-200">
                 <input type="date" className="text-sm bg-white border border-slate-200 rounded-lg px-2 py-1.5 outline-none text-slate-700" value={startDate} onChange={e => setStartDate(e.target.value)} />
@@ -144,10 +144,8 @@ export default function Dashboard() {
 
         {loading && <div className="h-1 bg-indigo-500 animate-pulse rounded-full w-full"></div>}
 
-        {/* Render Dashboard Visuals */}
         {data && data.total_revenue !== undefined && (
           <>
-            {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5">
               <StatCard title="Total Revenue" value={`₹${(data.total_revenue / 10000000).toFixed(2)} Cr`} icon={<IndianRupee className="text-emerald-600 w-5 h-5" />} />
               <StatCard title="Deliveries" value={data.total_deliveries} icon={<Car className="text-blue-600 w-5 h-5" />} />
@@ -163,7 +161,6 @@ export default function Dashboard() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Funnel */}
               <div className="bg-white p-6 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200 lg:col-span-1 flex flex-col">
                 <div className="mb-6">
                   <h3 className="text-base font-semibold text-slate-900">Active Pipeline Funnel</h3>
@@ -184,7 +181,6 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Bottlenecks Table */}
               <div className="bg-white rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200 overflow-hidden lg:col-span-2 flex flex-col">
                 <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center">
                   <div>
@@ -229,38 +225,52 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Leaderboard Section */}
+            {/* UPDATED: Global Leaderboards Section */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
               
+              {/* Ranked Dealerships (Global) */}
               <div className="bg-white p-6 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200">
-                <div className="flex items-center gap-2 mb-4">
-                  <Trophy className="w-5 h-5 text-amber-500" />
-                  <h3 className="text-base font-semibold text-slate-900">Top Dealership (Revenue)</h3>
-                </div>
-                {data.top_branch ? (
-                  <div className="bg-amber-50 border border-amber-100 rounded-xl p-5 flex justify-between items-center">
-                    <div>
-                      <h4 className="text-xl font-bold text-slate-900">{data.top_branch.name}</h4>
-                      <p className="text-sm text-slate-500 flex items-center gap-1 mt-1"><MapPin className="w-3.5 h-3.5" /> {data.top_branch.city}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs font-semibold text-amber-600 uppercase tracking-wider mb-1">Generated</p>
-                      <p className="text-2xl font-bold text-amber-700">₹{(data.top_branch.revenue / 10000000).toFixed(2)} Cr</p>
-                    </div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Trophy className="w-5 h-5 text-amber-500" />
+                    <h3 className="text-base font-semibold text-slate-900">Top Dealerships (Global)</h3>
                   </div>
-                ) : (
-                  <p className="text-sm text-slate-500">No data for selected filters.</p>
-                )}
+                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Immune to Filters</span>
+                </div>
+                <div className="space-y-3">
+                  {!data.top_branches || data.top_branches.length === 0 ? (
+                    <p className="text-sm text-slate-500">No data for selected timeframe.</p>
+                  ) : (
+                    data.top_branches.map((branch, index) => (
+                      <div key={index} className="flex justify-between items-center p-3 rounded-xl bg-slate-50 border border-slate-100">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-amber-200 text-amber-800' : index === 1 ? 'bg-slate-200 text-slate-700' : 'bg-orange-200 text-orange-800'}`}>
+                            {index + 1}
+                          </div>
+                          <div>
+                            <span className="font-medium text-slate-900 block">{branch.name}</span>
+                            <span className="text-[10px] text-slate-500 flex items-center gap-1 mt-0.5"><MapPin className="w-3 h-3"/>{branch.city}</span>
+                          </div>
+                        </div>
+                        <span className="font-semibold text-amber-700">₹{(branch.revenue / 10000000).toFixed(2)} Cr</span>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
 
+              {/* Ranked Reps (Global) */}
               <div className="bg-white p-6 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200">
-                <div className="flex items-center gap-2 mb-4">
-                  <Medal className="w-5 h-5 text-indigo-500" />
-                  <h3 className="text-base font-semibold text-slate-900">Top Sales Reps (Revenue)</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Medal className="w-5 h-5 text-indigo-500" />
+                    <h3 className="text-base font-semibold text-slate-900">Top Sales Reps (Global)</h3>
+                  </div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Immune to Filters</span>
                 </div>
                 <div className="space-y-3">
                   {!data.top_reps || data.top_reps.length === 0 ? (
-                    <p className="text-sm text-slate-500">No reps found for selected filters.</p>
+                    <p className="text-sm text-slate-500">No reps found for selected timeframe.</p>
                   ) : (
                     data.top_reps.map((rep, index) => (
                       <div key={index} className="flex justify-between items-center p-3 rounded-xl bg-slate-50 border border-slate-100">
