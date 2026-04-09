@@ -82,6 +82,7 @@ def get_metrics(
 
     time_delivered_leads = [l for l in time_filtered_leads if l["status"] == "delivered"]
     
+    # Ranked Branches (ALWAYS GLOBAL, NO SLICE LIMIT)
     branch_perf = []
     for b in branches:
         b_leads = [l for l in time_delivered_leads if l.get("branch_id") == b["id"]]
@@ -90,8 +91,9 @@ def get_metrics(
             "city": b["city"],
             "revenue": sum([l.get("deal_value", 0) for l in b_leads])
         })
-    top_branches = sorted(branch_perf, key=lambda x: x["revenue"], reverse=True)[:3]
+    top_branches = sorted(branch_perf, key=lambda x: x["revenue"], reverse=True)
 
+    # Ranked Reps (FILTERED BY BRANCH, NO SLICE LIMIT)
     rep_leaderboard_leads = time_delivered_leads
     if branch_id != "all":
         rep_leaderboard_leads = [l for l in time_delivered_leads if l.get("branch_id") == branch_id]
@@ -101,7 +103,7 @@ def get_metrics(
         r_id = l.get("assigned_to")
         rep_perf[r_id] = rep_perf.get(r_id, 0) + l.get("deal_value", 0)
     top_reps_list = [{"name": reps_dict.get(r_id, "Unknown"), "revenue": rev} for r_id, rev in rep_perf.items()]
-    top_reps = sorted(top_reps_list, key=lambda x: x["revenue"], reverse=True)[:3]
+    top_reps = sorted(top_reps_list, key=lambda x: x["revenue"], reverse=True)
 
     # ==========================================
     # FILTER STAGE 2: BRANCH & REP (For Drill-down KPIs)
@@ -120,7 +122,6 @@ def get_metrics(
     total_revenue = sum([l.get("deal_value", 0) for l in delivered_leads])
     conversion_rate = (len(delivered_leads) / resolved_count * 100) if resolved_count > 0 else 0
 
-    # NEW: Generate complete active pipeline details
     active_pipeline = []
     active_leads = [l for l in fully_filtered_leads if l["status"] not in ["delivered", "lost"]]
     
@@ -138,7 +139,9 @@ def get_metrics(
         })
         
     active_pipeline = sorted(active_pipeline, key=lambda x: x["days_stagnant"], reverse=True)
-    stagnant_leads = [l for l in active_pipeline if l["days_stagnant"] > 7][:10]
+    
+    # EXCLUDE "Order Placed" from being flagged as a bottleneck!
+    stagnant_leads = [l for l in active_pipeline if l["days_stagnant"] > 7 and l["stage"] != "Order Placed"][:10]
 
     funnel_stages = ["new", "contacted", "test_drive", "negotiation", "order_placed"]
     pipeline_funnel = [{"stage": s.replace("_", " ").title(), "count": len([l for l in active_leads if l["status"] == s])} for s in funnel_stages]

@@ -50,7 +50,6 @@ export default function Dashboard() {
     fetchData();
   }, [fetchData, timeFilter, startDate, endDate]);
 
-  // Logic to dynamically change the table behavior
   const isRepView = repFilter !== "all";
   const tableData = isRepView ? data?.active_pipeline : data?.stagnant_leads;
   const tableTitle = isRepView ? "Complete Active Pipeline" : "Critical Bottlenecks";
@@ -70,6 +69,14 @@ export default function Dashboard() {
   const selectedBranchName = branchFilter !== 'all' && data?.filters?.branches 
     ? data.filters.branches.find(b => b.id === branchFilter)?.name 
     : 'Global';
+
+  // Helper function for Leaderboard Badges
+  const getBadgeStyle = (index) => {
+    if (index === 0) return 'bg-amber-200 text-amber-800'; // Gold
+    if (index === 1) return 'bg-slate-200 text-slate-700'; // Silver
+    if (index === 2) return 'bg-orange-200 text-orange-800'; // Bronze
+    return 'bg-slate-100 text-slate-500'; // 4th+ Standard
+  };
 
   if (error) return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
@@ -189,7 +196,6 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* DYNAMIC TABLE: Changes based on Rep vs Global View */}
               <div className="bg-white rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200 overflow-hidden lg:col-span-2 flex flex-col">
                 <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center">
                   <div>
@@ -248,21 +254,22 @@ export default function Dashboard() {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
               
-              <div className="bg-white p-6 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200">
+              <div className="bg-white p-6 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200 flex flex-col">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <Trophy className="w-5 h-5 text-amber-500" />
-                    <h3 className="text-base font-semibold text-slate-900">Top Dealerships (Global)</h3>
+                    <h3 className="text-base font-semibold text-slate-900">Ranked Dealerships (Global)</h3>
                   </div>
                 </div>
-                <div className="space-y-3">
+                {/* Scrollable container so it fits dynamically */}
+                <div className="space-y-3 max-h-[260px] overflow-y-auto pr-2">
                   {!data.top_branches || data.top_branches.length === 0 ? (
                     <p className="text-sm text-slate-500">No data for selected timeframe.</p>
                   ) : (
                     data.top_branches.map((branch, index) => (
                       <div key={index} className="flex justify-between items-center p-3 rounded-xl bg-slate-50 border border-slate-100">
                         <div className="flex items-center gap-3">
-                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-amber-200 text-amber-800' : index === 1 ? 'bg-slate-200 text-slate-700' : 'bg-orange-200 text-orange-800'}`}>
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${getBadgeStyle(index)}`}>
                             {index + 1}
                           </div>
                           <div>
@@ -277,21 +284,22 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              <div className="bg-white p-6 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200">
+              <div className="bg-white p-6 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200 flex flex-col">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <Medal className="w-5 h-5 text-indigo-500" />
-                    <h3 className="text-base font-semibold text-slate-900">Top Sales Reps ({selectedBranchName})</h3>
+                    <h3 className="text-base font-semibold text-slate-900">Ranked Sales Reps ({selectedBranchName})</h3>
                   </div>
                 </div>
-                <div className="space-y-3">
+                {/* Scrollable container so it fits dynamically */}
+                <div className="space-y-3 max-h-[260px] overflow-y-auto pr-2">
                   {!data.top_reps || data.top_reps.length === 0 ? (
                     <p className="text-sm text-slate-500">No reps found for selected timeframe.</p>
                   ) : (
                     data.top_reps.map((rep, index) => (
                       <div key={index} className="flex justify-between items-center p-3 rounded-xl bg-slate-50 border border-slate-100">
                         <div className="flex items-center gap-3">
-                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? 'bg-amber-200 text-amber-800' : index === 1 ? 'bg-slate-200 text-slate-700' : 'bg-orange-200 text-orange-800'}`}>
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${getBadgeStyle(index)}`}>
                             {index + 1}
                           </div>
                           <span className="font-medium text-slate-900">{rep.name}</span>
