@@ -92,7 +92,7 @@ export default function Dashboard() {
             <h1 className="text-xl font-bold tracking-tight">Dealer<span className="text-indigo-600">Pulse</span></h1>
           </div>
           <div className="text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full flex items-center gap-2">
-            <span className="text-slate-800 font-bold">v3</span>
+            <span className="text-slate-800 font-bold">v2</span>
             {data?.current_date && (
               <>
                 <span className="w-1 h-1 rounded-full bg-slate-300"></span>
