@@ -31,7 +31,7 @@ If this were a multi-week sprint, here is exactly how I would evolve the product
 * **The "Why":** A dashboard is only as good as its filtering capabilities. I implemented global dropdowns (Branch and Timeframe) that dynamically re-query the API. This satisfies the core requirement for drill-down capabilities while maintaining a clean UI.
 * **The Funnel Addition:** To hit the "Open-Ended" requirement, I added a "Pipeline Funnel" visualization. Instead of a standard revenue chart, showing the active volume of leads in each stage helps leadership immediately identify top-of-funnel or bottom-of-funnel weakness (e.g., if there are 50 leads in Test Drive but only 2 in Negotiation, there is a sales enablement problem).
 
-  ## 6. Addressing the "Open-Ended Space"
+## 6. Addressing the "Open-Ended Space"
 The prompt provided a list of 8 potential bonus features and explicitly advised: *"don't try to do all of them."* In a real-world product environment, feature bloat is a massive risk. I chose to exercise deliberate scope control by implementing only the features that provide the highest immediate ROI for a Branch Manager:
 1. **Lead aging alerts:** Handled natively by the "Critical Bottlenecks" engine.
 2. **Conversion funnel visualization:** Implemented as the Active Pipeline chart to show exact drop-off points.
@@ -40,9 +40,27 @@ The prompt provided a list of 8 potential bonus features and explicitly advised:
 By focusing tightly on these four, I ensured the dashboard remained performant and focused purely on actionability without cluttering the UI.
 
 ## 7. Version 2: Iterating on Feedback
-Based on a rigorous review of the initial architecture, I implemented a v2 update to address key data integrity and UX gaps:
+## Strategic Iterations: Deepening Data Exploration & Enterprise UX
 
-1. **Fixing the Time-Travel Bug:** Initially, the "Current Date" was anchored to the newest `last_activity_at` across all leads. While functional, it created a drift. I refactored the backend to parse the `metadata.generated_at` timestamp from the JSON, guaranteeing that the "Days Stagnant" math is 100% historically accurate.
-2. **Correcting Conversion Rate Logic:** The v1 conversion rate divided "Delivered" by "Total Active Pipeline." This is incorrect for a sales organization because active deals haven't finalized. I updated the math to strictly calculate Closed-Won vs. Closed-Lost deals: `(Delivered / (Delivered + Lost))`. 
-3. **Cascading Drill-Downs:** I completed the minimum requirement by implementing a Sales Rep dropdown. To improve UX, it cascades—only revealing the Sales Reps associated with the Branch currently selected.
-4. **Leaderboard Engine:** I built a dynamic leaderboard at the bottom of the dashboard identifying the Top Branch and Top 3 Sales Reps, which re-calculates instantly based on the selected custom timeframe or branch filters.
+Following the initial build and a rigorous review of the data, I executed a comprehensive architectural update. The goal was to shift the dashboard from simply *displaying* data to actively *generating contextual, actionable insights* based on the user's intent.
+
+### A. Data Integrity & Precision Analytics
+A dashboard is only as valuable as the trust executives place in its math. I refactored the backend to ensure strict reporting accuracy:
+* **Strict Time-Anchoring:** Fixed a "time-travel" data drift by anchoring calculations to the exact `metadata.generated_at` timestamp rather than the newest lead's activity date.
+* **True Win-Rate Math:** Recalibrated conversion tracking to standard sales logic: `(Delivered / (Delivered + Lost))`, intentionally excluding active pipeline deals that haven't finalized.
+* **Noise Reduction:** Excluded "Order Placed" leads from the Critical Bottlenecks engine to avoid penalizing reps for won deals awaiting logistics.
+* **Zero-Performer Visibility:** Initialized the backend with all 30 sales reps *before* aggregating revenue. Underperforming reps now correctly appear at the bottom of leaderboards with ₹0, giving managers clear targets for coaching rather than being silently omitted.
+
+### B. Contextual UI & "Morphing" Architecture
+Different roles require entirely different views of the same data. I rebuilt the UI to adapt to the user's scope:
+* **Role-Based Morphing:** Built a dynamic table architecture. At the Global/Branch level, it acts as an **Executive Dashboard** (managing by *exception*, showing only >7-day bottlenecks). When drilled down to a specific Sales Rep, it morphs into an **Operational Workspace** (managing by *inventory*, revealing their entire active pipeline).
+* **Cascading Drill-Downs:** Implemented dependent filters where the Sales Rep dropdown dynamically updates based on the selected Branch, preventing dead-end queries.
+
+### C. Strategic Discovery & Leaderboards
+* **Decoupled Benchmarks:** Separated leaderboard logic so "Top Dealerships" remains strictly Global (immune to branch filters) while "Top Sales Reps" dynamically localizes to the selected branch. This preserves macro-rankings while highlighting internal branch competition.
+* **Dynamic Peak Generation:** Engineered a new "Top Month" KPI that aggregates historical closed-won deals. It seamlessly scales to surface the highest-grossing month globally, per branch, or per rep.
+* **Leadership Tagging:** Appended `(BM)` tags and distinct iconography to Branch Managers to instantly tie financial outcomes to specific leaders.
+
+### D. Enterprise Fit & Finish
+* **Widescreen Fluidity:** Expanded the layout max-width to `1600px` to fully utilize horizontal real estate on large executive desktop monitors, perfectly aligning the 6-column KPI grid.
+* **Contextual Tooltips:** Embedded custom hover tooltips on complex metrics (e.g., the interactive What-If forecast slider) to eliminate ambiguity while keeping the primary UI uncluttered.
