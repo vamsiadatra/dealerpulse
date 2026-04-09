@@ -178,15 +178,15 @@ export default function Dashboard() {
                 tooltip="Active deals that have had no logged activity for over 7 days. High risk of going cold."
               />
               
-              {/* UPDATED: Centered vertically and added Info tooltip */}
-              <div className="bg-gradient-to-br from-indigo-50 to-white p-5 rounded-2xl border border-indigo-100 shadow-sm relative overflow-hidden h-full flex flex-col justify-center">
+              {/* UPDATED: Removed overflow-hidden, swapped to cursor-pointer, set z-50 */}
+              <div className="bg-gradient-to-br from-indigo-50 to-white p-5 rounded-2xl border border-indigo-100 shadow-sm relative h-full flex flex-col justify-center">
                 <div className="flex justify-between items-start mb-2">
                   <p className="text-xs font-semibold text-indigo-600 flex items-center gap-1 uppercase tracking-wider">
                     <Zap className="w-3 h-3" /> What-If
                   </p>
-                  <div className="relative group cursor-help">
+                  <div className="relative group cursor-pointer">
                     <Info className="w-4 h-4 text-indigo-300 hover:text-indigo-500 transition-colors" />
-                    <div className="absolute right-0 bottom-full mb-2 w-48 p-2 bg-slate-800 text-white text-[10px] leading-tight rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-xl">
+                    <div className="absolute right-0 bottom-full mb-2 w-48 p-2 bg-slate-800 text-white text-[10px] leading-tight rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-xl">
                       Calculates the potential revenue gain if the win-rate of the current active pipeline improves.
                     </div>
                   </div>
@@ -263,7 +263,6 @@ export default function Dashboard() {
                               <div className="text-xs text-slate-400 font-normal">{lead.model} • ₹{(lead.value / 100000).toFixed(1)}L</div>
                             </td>
                             <td className="px-6 py-4"><span className="px-2.5 py-1 rounded-md text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200/50">{lead.stage}</span></td>
-                            {/* UPDATED: Added Branch Name to the table for amazing context! */}
                             <td className="px-6 py-4 text-slate-600">
                               {lead.rep_name}
                               <div className="text-xs text-slate-400 font-normal">{lead.branch_name}</div>
@@ -347,7 +346,7 @@ export default function Dashboard() {
   );
 }
 
-// UPDATED: StatCard now visually centers its content and accepts a tooltip string!
+// UPDATED: Swapped cursor-pointer and bumped z-index to z-50
 function StatCard({ title, value, icon, subtitle, alert, tooltip }) {
   return (
     <div className={`bg-white p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.05)] border transition-all h-full flex flex-col justify-center ${alert ? 'border-rose-200 ring-1 ring-rose-50' : 'border-slate-200'}`}>
@@ -356,9 +355,9 @@ function StatCard({ title, value, icon, subtitle, alert, tooltip }) {
           <div className="flex items-center gap-1.5 mb-1">
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">{title}</p>
             {tooltip && (
-              <div className="relative group cursor-help">
+              <div className="relative group cursor-pointer">
                 <Info className="w-3.5 h-3.5 text-slate-300 hover:text-slate-500 transition-colors" />
-                <div className="absolute left-0 bottom-full mb-2 w-48 p-2 bg-slate-800 text-white text-[10px] leading-tight rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-xl normal-case font-normal tracking-normal">
+                <div className="absolute left-0 bottom-full mb-2 w-48 p-2 bg-slate-800 text-white text-[10px] leading-tight rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-xl normal-case font-normal tracking-normal">
                   {tooltip}
                 </div>
               </div>
