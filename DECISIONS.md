@@ -38,3 +38,11 @@ The prompt provided a list of 8 potential bonus features and explicitly advised:
 3. **Export/Sharing:** Added a 1-click CSV export for the bottlenecks table, acknowledging that many executives still rely heavily on spreadsheets for offline sharing.
 4. **What-if scenarios:** Added a lightweight "What-If Forecast" slider on the KPI ribbon to instantly demonstrate how minor conversion optimizations directly impact the bottom line.
 By focusing tightly on these four, I ensured the dashboard remained performant and focused purely on actionability without cluttering the UI.
+
+## 7. Version 2: Iterating on Feedback
+Based on a rigorous review of the initial architecture, I implemented a v2 update to address key data integrity and UX gaps:
+
+1. **Fixing the Time-Travel Bug:** Initially, the "Current Date" was anchored to the newest `last_activity_at` across all leads. While functional, it created a drift. I refactored the backend to parse the `metadata.generated_at` timestamp from the JSON, guaranteeing that the "Days Stagnant" math is 100% historically accurate.
+2. **Correcting Conversion Rate Logic:** The v1 conversion rate divided "Delivered" by "Total Active Pipeline." This is incorrect for a sales organization because active deals haven't finalized. I updated the math to strictly calculate Closed-Won vs. Closed-Lost deals: `(Delivered / (Delivered + Lost))`. 
+3. **Cascading Drill-Downs:** I completed the minimum requirement by implementing a Sales Rep dropdown. To improve UX, it cascades—only revealing the Sales Reps associated with the Branch currently selected.
+4. **Leaderboard Engine:** I built a dynamic leaderboard at the bottom of the dashboard identifying the Top Branch and Top 3 Sales Reps, which re-calculates instantly based on the selected custom timeframe or branch filters.

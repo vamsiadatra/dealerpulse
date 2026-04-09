@@ -34,6 +34,10 @@ export default function Dashboard() {
         return res.json();
       })
       .then(json => {
+        // BULLETPROOF CHECK: Ensure the API returned exactly what we need before rendering
+        if (!json || typeof json.total_revenue === 'undefined' || !json.filters) {
+          throw new Error("Received incomplete data from the backend.");
+        }
         setData(json);
         setLoading(false);
         setError(null);
@@ -48,10 +52,10 @@ export default function Dashboard() {
     // Only block fetch if custom is selected but dates are missing
     if (timeFilter === 'custom' && (!startDate || !endDate)) return;
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, timeFilter, startDate, endDate]);
 
   const handleExportCSV = () => {
-    if (!data || !data.stagnant_leads.length) return;
+    if (!data || !data.stagnant_leads || !data.stagnant_leads.length) return;
     const headers = ["Customer", "Model", "Stage", "Sales Rep", "Days Stuck"];
     const csvContent = [headers.join(","), ...data.stagnant_leads.map(l => `"${l.customer}","${l.model}","${l.stage}","${l.rep_name}",${l.days_stagnant}`)].join("\n");
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -61,6 +65,7 @@ export default function Dashboard() {
     link.click();
   };
 
+  // Graceful Error UI
   if (error) return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
       <div className="bg-white p-8 rounded-2xl shadow-lg border border-rose-100 text-center text-rose-600 font-mono text-sm">{error}</div>
@@ -81,7 +86,7 @@ export default function Dashboard() {
 
       <div className="max-w-7xl mx-auto px-6 mt-8 space-y-6">
         
-        {/* NEW: Advanced Global Filter Bar */}
+        {/* Advanced Global Filter Bar */}
         <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
           <div>
             <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Pipeline Health</h2>
@@ -94,7 +99,7 @@ export default function Dashboard() {
               <Filter className="w-4 h-4 text-slate-500" />
               <select className="bg-transparent text-sm font-medium text-slate-700 outline-none cursor-pointer" value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)}>
                 <option value="all">All Branches</option>
-                {data?.filters?.branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                {(data?.filters?.branches || []).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
               </select>
             </div>
 
@@ -104,7 +109,7 @@ export default function Dashboard() {
                 <Users className="w-4 h-4 text-indigo-500" />
                 <select className="bg-transparent text-sm font-medium text-indigo-900 outline-none cursor-pointer" value={repFilter} onChange={(e) => setRepFilter(e.target.value)}>
                   <option value="all">All Reps in Branch</option>
-                  {data?.filters?.reps.filter(r => r.branch_id === branchFilter).map(r => (
+                  {(data?.filters?.reps || []).filter(r => r.branch_id === branchFilter).map(r => (
                     <option key={r.id} value={r.id}>{r.name}</option>
                   ))}
                 </select>
@@ -139,14 +144,15 @@ export default function Dashboard() {
 
         {loading && <div className="h-1 bg-indigo-500 animate-pulse rounded-full w-full"></div>}
 
-        {data && (
+        {/* Render Dashboard Visuals */}
+        {data && data.total_revenue !== undefined && (
           <>
             {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5">
               <StatCard title="Total Revenue" value={`₹${(data.total_revenue / 10000000).toFixed(2)} Cr`} icon={<IndianRupee className="text-emerald-600 w-5 h-5" />} />
               <StatCard title="Deliveries" value={data.total_deliveries} icon={<Car className="text-blue-600 w-5 h-5" />} />
               <StatCard title="Win Rate" value={`${data.conversion_rate}%`} subtitle="Closed-Won Deals" icon={<TrendingUp className="text-indigo-600 w-5 h-5" />} />
-              <StatCard title="Bottlenecks" value={data.stagnant_leads.length} icon={<AlertTriangle className="text-rose-600 w-5 h-5" />} alert />
+              <StatCard title="Bottlenecks" value={data.stagnant_leads?.length || 0} icon={<AlertTriangle className="text-rose-600 w-5 h-5" />} alert />
               
               <div className="bg-gradient-to-br from-indigo-50 to-white p-5 rounded-2xl border border-indigo-100 shadow-sm relative overflow-hidden">
                 <p className="text-xs font-semibold text-indigo-600 flex items-center gap-1 mb-2"><Zap className="w-3 h-3" /> WHAT-IF FORECAST</p>
@@ -165,13 +171,13 @@ export default function Dashboard() {
                 </div>
                 <div className="flex-grow w-full min-h-[250px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={data.pipeline_funnel} layout="vertical" margin={{ left: 10, right: 10 }}>
+                    <BarChart data={data.pipeline_funnel || []} layout="vertical" margin={{ left: 10, right: 10 }}>
                       <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
                       <XAxis type="number" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
                       <YAxis dataKey="stage" type="category" tick={{ fontSize: 12, fill: '#334155', fontWeight: 500 }} axisLine={false} tickLine={false} width={80} />
                       <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0' }} />
                       <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={24}>
-                        {data.pipeline_funnel.map((entry, index) => <Cell key={`cell-${index}`} fill="#6366f1" />)}
+                        {(data.pipeline_funnel || []).map((entry, index) => <Cell key={`cell-${index}`} fill="#6366f1" />)}
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
@@ -183,7 +189,7 @@ export default function Dashboard() {
                 <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center">
                   <div>
                     <h3 className="text-base font-semibold text-slate-900">Critical Bottlenecks</h3>
-                    <p className="text-xs text-slate-500 mt-1">Leads going cold (>7 days idle).</p>
+                    <p className="text-xs text-slate-500 mt-1">Leads going cold (&gt;7 days idle).</p>
                   </div>
                   <div className="flex gap-2">
                     <button onClick={handleExportCSV} className="inline-flex items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-600 text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 transition-colors">
@@ -205,7 +211,7 @@ export default function Dashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {data.stagnant_leads.length === 0 ? (
+                      {!data.stagnant_leads || data.stagnant_leads.length === 0 ? (
                         <tr><td colSpan="4" className="text-center py-8 text-slate-500">No stagnant leads found. Great job!</td></tr>
                       ) : (
                         data.stagnant_leads.map((lead) => (
@@ -223,7 +229,7 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* NEW: Leaderboard Section */}
+            {/* Leaderboard Section */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
               
               <div className="bg-white p-6 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200">
@@ -253,7 +259,7 @@ export default function Dashboard() {
                   <h3 className="text-base font-semibold text-slate-900">Top Sales Reps (Revenue)</h3>
                 </div>
                 <div className="space-y-3">
-                  {data.top_reps.length === 0 ? (
+                  {!data.top_reps || data.top_reps.length === 0 ? (
                     <p className="text-sm text-slate-500">No reps found for selected filters.</p>
                   ) : (
                     data.top_reps.map((rep, index) => (
