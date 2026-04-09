@@ -8,7 +8,6 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // Filter States
   const [branchFilter, setBranchFilter] = useState("all");
   const [repFilter, setRepFilter] = useState("all");
   const [timeFilter, setTimeFilter] = useState("all");
@@ -62,6 +61,11 @@ export default function Dashboard() {
     link.click();
   };
 
+  // Determine dynamic title for the Rep Leaderboard
+  const selectedBranchName = branchFilter !== 'all' && data?.filters?.branches 
+    ? data.filters.branches.find(b => b.id === branchFilter)?.name 
+    : 'Global';
+
   if (error) return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
       <div className="bg-white p-8 rounded-2xl shadow-lg border border-rose-100 text-center text-rose-600 font-mono text-sm">{error}</div>
@@ -76,7 +80,6 @@ export default function Dashboard() {
             <div className="bg-indigo-600 p-1.5 rounded-lg"><Car className="text-white w-5 h-5" /></div>
             <h1 className="text-xl font-bold tracking-tight">Dealer<span className="text-indigo-600">Pulse</span></h1>
           </div>
-          {/* UPDATED: Dynamic Date Badge */}
           <div className="text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full flex items-center gap-2">
             <span className="text-slate-800 font-bold">v2</span>
             {data?.current_date && (
@@ -225,17 +228,14 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* UPDATED: Global Leaderboards Section */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
               
-              {/* Ranked Dealerships (Global) */}
               <div className="bg-white p-6 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <Trophy className="w-5 h-5 text-amber-500" />
                     <h3 className="text-base font-semibold text-slate-900">Top Dealerships (Global)</h3>
                   </div>
-                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Immune to Filters</span>
                 </div>
                 <div className="space-y-3">
                   {!data.top_branches || data.top_branches.length === 0 ? (
@@ -259,14 +259,12 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Ranked Reps (Global) */}
               <div className="bg-white p-6 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <Medal className="w-5 h-5 text-indigo-500" />
-                    <h3 className="text-base font-semibold text-slate-900">Top Sales Reps (Global)</h3>
+                    <h3 className="text-base font-semibold text-slate-900">Top Sales Reps ({selectedBranchName})</h3>
                   </div>
-                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Immune to Filters</span>
                 </div>
                 <div className="space-y-3">
                   {!data.top_reps || data.top_reps.length === 0 ? (

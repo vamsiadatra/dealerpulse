@@ -38,7 +38,6 @@ def get_metrics(
     sales_reps = data.get("sales_reps", [])
     reps_dict = {rep['id']: rep['name'] for rep in sales_reps}
     
-    # 1. Establish Current Date from metadata
     generated_at_str = data.get("metadata", {}).get("generated_at")
     if generated_at_str:
         simulated_now = datetime.fromisoformat(generated_at_str.replace("Z", ""))
@@ -48,7 +47,7 @@ def get_metrics(
     formatted_current_date = simulated_now.strftime("%b %d, %Y")
 
     # ==========================================
-    # FILTER STAGE 1: TIME-ONLY (For Leaderboards)
+    # FILTER STAGE 1: TIME-ONLY
     # ==========================================
     time_filtered_leads = all_leads
     
@@ -81,10 +80,9 @@ def get_metrics(
                     temp_leads.append(l)
             time_filtered_leads = temp_leads
 
-    # Calculate Leaderboards strictly on TIME, immune to branch/rep filters
     time_delivered_leads = [l for l in time_filtered_leads if l["status"] == "delivered"]
     
-    # Ranked Branches (Top 3)
+    # Ranked Branches (ALWAYS GLOBAL)
     branch_perf = []
     for b in branches:
         b_leads = [l for l in time_delivered_leads if l.get("branch_id") == b["id"]]
@@ -95,14 +93,17 @@ def get_metrics(
         })
     top_branches = sorted(branch_perf, key=lambda x: x["revenue"], reverse=True)[:3]
 
-    # Ranked Reps (Top 3)
+    # Ranked Reps (FILTERED BY BRANCH)
+    rep_leaderboard_leads = time_delivered_leads
+    if branch_id != "all":
+        rep_leaderboard_leads = [l for l in time_delivered_leads if l.get("branch_id") == branch_id]
+        
     rep_perf = {}
-    for l in time_delivered_leads:
+    for l in rep_leaderboard_leads:
         r_id = l.get("assigned_to")
         rep_perf[r_id] = rep_perf.get(r_id, 0) + l.get("deal_value", 0)
     top_reps_list = [{"name": reps_dict.get(r_id, "Unknown"), "revenue": rev} for r_id, rev in rep_perf.items()]
     top_reps = sorted(top_reps_list, key=lambda x: x["revenue"], reverse=True)[:3]
-
 
     # ==========================================
     # FILTER STAGE 2: BRANCH & REP (For Drill-down KPIs)
@@ -114,7 +115,6 @@ def get_metrics(
     if rep_id != "all":
         fully_filtered_leads = [l for l in fully_filtered_leads if l.get("assigned_to") == rep_id]
         
-    # Calculate Drill-Down KPIs
     delivered_leads = [l for l in fully_filtered_leads if l["status"] == "delivered"]
     lost_leads = [l for l in fully_filtered_leads if l["status"] == "lost"]
     resolved_count = len(delivered_leads) + len(lost_leads)
@@ -122,7 +122,6 @@ def get_metrics(
     total_revenue = sum([l.get("deal_value", 0) for l in delivered_leads])
     conversion_rate = (len(delivered_leads) / resolved_count * 100) if resolved_count > 0 else 0
 
-    # Bottlenecks
     stagnant_leads = []
     active_leads = [l for l in fully_filtered_leads if l["status"] not in ["delivered", "lost"]]
     
@@ -140,7 +139,6 @@ def get_metrics(
             })
     stagnant_leads = sorted(stagnant_leads, key=lambda x: x["days_stagnant"], reverse=True)[:10]
 
-    # Funnel
     funnel_stages = ["new", "contacted", "test_drive", "negotiation", "order_placed"]
     pipeline_funnel = [{"stage": s.replace("_", " ").title(), "count": len([l for l in active_leads if l["status"] == s])} for s in funnel_stages]
 
