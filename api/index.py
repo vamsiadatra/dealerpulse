@@ -42,6 +42,9 @@ def get_metrics(
         for rep in sales_reps
     }
     
+    # NEW: Create a quick dictionary to look up branch names by ID
+    branches_dict = {b['id']: b['name'] for b in branches}
+    
     generated_at_str = data.get("metadata", {}).get("generated_at")
     if generated_at_str:
         simulated_now = datetime.fromisoformat(generated_at_str.replace("Z", ""))
@@ -138,11 +141,10 @@ def get_metrics(
     total_revenue = sum([l.get("deal_value", 0) for l in delivered_leads])
     conversion_rate = (len(delivered_leads) / resolved_count * 100) if resolved_count > 0 else 0
 
-    # NEW: Dynamic "Best Month" Calculation
     monthly_revenue = {}
     for l in delivered_leads:
         date_obj = datetime.fromisoformat(l["last_activity_at"].replace("Z", ""))
-        month_key = date_obj.strftime("%b %Y") # e.g., "Nov 2025"
+        month_key = date_obj.strftime("%b %Y") 
         monthly_revenue[month_key] = monthly_revenue.get(month_key, 0) + l.get("deal_value", 0)
 
     best_month = None
@@ -165,6 +167,8 @@ def get_metrics(
             "model": lead.get("model_interested", "Unknown"),
             "stage": lead["status"].replace("_", " ").title(),
             "rep_name": reps_dict.get(lead["assigned_to"], "Unknown"),
+            # NEW: Add the branch name to the lead data for the frontend
+            "branch_name": branches_dict.get(lead.get("branch_id"), "Unknown Branch"),
             "days_stagnant": days_stagnant,
             "value": lead.get("deal_value", 0)
         })

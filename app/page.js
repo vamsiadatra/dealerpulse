@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { IndianRupee, TrendingUp, Car, AlertTriangle, Clock, Filter, Calendar, Download, Zap, Users, Trophy, Medal, MapPin, List, User } from 'lucide-react';
+import { IndianRupee, TrendingUp, Car, AlertTriangle, Clock, Filter, Calendar, Download, Zap, Users, Trophy, Medal, MapPin, List, User, Info } from 'lucide-react';
 
 export default function Dashboard() {
   const [data, setData] = useState(null);
@@ -57,8 +57,8 @@ export default function Dashboard() {
 
   const handleExportCSV = () => {
     if (!tableData || !tableData.length) return;
-    const headers = ["Customer", "Model", "Stage", "Sales Rep", "Days Stuck"];
-    const csvContent = [headers.join(","), ...tableData.map(l => `"${l.customer}","${l.model}","${l.stage}","${l.rep_name}",${l.days_stagnant}`)].join("\n");
+    const headers = ["Customer", "Model", "Stage", "Sales Rep", "Branch", "Days Stuck"];
+    const csvContent = [headers.join(","), ...tableData.map(l => `"${l.customer}","${l.model}","${l.stage}","${l.rep_name}","${l.branch_name}",${l.days_stagnant}`)].join("\n");
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -160,27 +160,41 @@ export default function Dashboard() {
 
         {data && data.total_revenue !== undefined && (
           <>
-            {/* UPDATED: 6-Column Grid to fit the new Best Month Card */}
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-5">
               <StatCard title="Total Revenue" value={`₹${(data.total_revenue / 10000000).toFixed(2)} Cr`} icon={<IndianRupee className="text-emerald-600 w-5 h-5" />} />
               <StatCard title="Deliveries" value={data.total_deliveries} icon={<Car className="text-blue-600 w-5 h-5" />} />
               <StatCard title="Win Rate" value={`${data.conversion_rate}%`} subtitle="Closed-Won Deals" icon={<TrendingUp className="text-indigo-600 w-5 h-5" />} />
-              
-              {/* NEW: Dynamic Best Month Card */}
               <StatCard 
                 title="Top Month" 
                 value={data.best_month?.month || 'N/A'} 
                 subtitle={data.best_month ? `Generated ₹${(data.best_month.revenue / 10000000).toFixed(2)} Cr` : ''}
                 icon={<Calendar className="text-purple-600 w-5 h-5" />} 
               />
-
-              <StatCard title="Bottlenecks" value={data.stagnant_leads?.length || 0} icon={<AlertTriangle className="text-rose-600 w-5 h-5" />} alert />
+              <StatCard 
+                title="Bottlenecks" 
+                value={data.stagnant_leads?.length || 0} 
+                icon={<AlertTriangle className="text-rose-600 w-5 h-5" />} 
+                alert 
+                tooltip="Active deals that have had no logged activity for over 7 days. High risk of going cold."
+              />
               
-              <div className="bg-gradient-to-br from-indigo-50 to-white p-5 rounded-2xl border border-indigo-100 shadow-sm relative overflow-hidden">
-                <p className="text-xs font-semibold text-indigo-600 flex items-center gap-1 mb-2"><Zap className="w-3 h-3" /> WHAT-IF FORECAST</p>
-                <p className="text-xl font-bold text-slate-900 tracking-tight">+₹{((data.total_revenue * (conversionLift / 100)) / 100000).toFixed(1)} L</p>
-                <p className="text-xs text-slate-500 mt-1">If win rate improves by {conversionLift}%</p>
-                {/* UPDATED: Slider max changed to 25 */}
+              {/* UPDATED: Centered vertically and added Info tooltip */}
+              <div className="bg-gradient-to-br from-indigo-50 to-white p-5 rounded-2xl border border-indigo-100 shadow-sm relative overflow-hidden h-full flex flex-col justify-center">
+                <div className="flex justify-between items-start mb-2">
+                  <p className="text-xs font-semibold text-indigo-600 flex items-center gap-1 uppercase tracking-wider">
+                    <Zap className="w-3 h-3" /> What-If
+                  </p>
+                  <div className="relative group cursor-help">
+                    <Info className="w-4 h-4 text-indigo-300 hover:text-indigo-500 transition-colors" />
+                    <div className="absolute right-0 bottom-full mb-2 w-48 p-2 bg-slate-800 text-white text-[10px] leading-tight rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-xl">
+                      Calculates the potential revenue gain if the win-rate of the current active pipeline improves.
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold text-slate-900 tracking-tight">+₹{((data.total_revenue * (conversionLift / 100)) / 100000).toFixed(1)} L</h3>
+                  <p className="text-[10px] font-medium text-slate-500 mt-1">If win rate improves by {conversionLift}%</p>
+                </div>
                 <input type="range" min="1" max="25" value={conversionLift} onChange={(e) => setConversionLift(e.target.value)} className="w-full mt-3 accent-indigo-600" />
               </div>
             </div>
@@ -249,7 +263,11 @@ export default function Dashboard() {
                               <div className="text-xs text-slate-400 font-normal">{lead.model} • ₹{(lead.value / 100000).toFixed(1)}L</div>
                             </td>
                             <td className="px-6 py-4"><span className="px-2.5 py-1 rounded-md text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200/50">{lead.stage}</span></td>
-                            <td className="px-6 py-4 text-slate-600">{lead.rep_name}</td>
+                            {/* UPDATED: Added Branch Name to the table for amazing context! */}
+                            <td className="px-6 py-4 text-slate-600">
+                              {lead.rep_name}
+                              <div className="text-xs text-slate-400 font-normal">{lead.branch_name}</div>
+                            </td>
                             <td className={`px-6 py-4 text-right font-semibold ${lead.days_stagnant > 7 ? 'text-rose-600' : 'text-emerald-600'}`}>
                               {lead.days_stagnant} days
                             </td>
@@ -283,7 +301,6 @@ export default function Dashboard() {
                           </div>
                           <div>
                             <span className="font-medium text-slate-900 block">{branch.name}</span>
-                            {/* UPDATED: Neutralized BM text color to match the map pin */}
                             <div className="flex flex-wrap items-center gap-3 mt-1">
                               <span className="text-[10px] text-slate-500 flex items-center gap-1"><MapPin className="w-3 h-3"/>{branch.city}</span>
                               <span className="text-[10px] text-slate-500 flex items-center gap-1"><User className="w-3 h-3"/>{branch.manager}</span>
@@ -330,16 +347,27 @@ export default function Dashboard() {
   );
 }
 
-function StatCard({ title, value, icon, subtitle, alert }) {
+// UPDATED: StatCard now visually centers its content and accepts a tooltip string!
+function StatCard({ title, value, icon, subtitle, alert, tooltip }) {
   return (
-    <div className={`bg-white p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.05)] border transition-all ${alert ? 'border-rose-200 ring-1 ring-rose-50' : 'border-slate-200'}`}>
-      <div className="flex justify-between items-start">
+    <div className={`bg-white p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.05)] border transition-all h-full flex flex-col justify-center ${alert ? 'border-rose-200 ring-1 ring-rose-50' : 'border-slate-200'}`}>
+      <div className="flex justify-between items-start w-full">
         <div>
-          <p className="text-xs font-medium text-slate-500 mb-1 uppercase tracking-wider">{title}</p>
+          <div className="flex items-center gap-1.5 mb-1">
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">{title}</p>
+            {tooltip && (
+              <div className="relative group cursor-help">
+                <Info className="w-3.5 h-3.5 text-slate-300 hover:text-slate-500 transition-colors" />
+                <div className="absolute left-0 bottom-full mb-2 w-48 p-2 bg-slate-800 text-white text-[10px] leading-tight rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-xl normal-case font-normal tracking-normal">
+                  {tooltip}
+                </div>
+              </div>
+            )}
+          </div>
           <h3 className="text-2xl font-bold text-slate-900 tracking-tight">{value}</h3>
           {subtitle && <p className="text-[10px] font-medium text-slate-400 mt-1">{subtitle}</p>}
         </div>
-        <div className={`p-2.5 rounded-xl ${alert ? 'bg-rose-50' : 'bg-slate-50'}`}>{icon}</div>
+        <div className={`p-2.5 rounded-xl shrink-0 ${alert ? 'bg-rose-50' : 'bg-slate-50'}`}>{icon}</div>
       </div>
     </div>
   );
