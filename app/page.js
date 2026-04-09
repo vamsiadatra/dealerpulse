@@ -160,17 +160,28 @@ export default function Dashboard() {
 
         {data && data.total_revenue !== undefined && (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5">
+            {/* UPDATED: 6-Column Grid to fit the new Best Month Card */}
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-5">
               <StatCard title="Total Revenue" value={`₹${(data.total_revenue / 10000000).toFixed(2)} Cr`} icon={<IndianRupee className="text-emerald-600 w-5 h-5" />} />
               <StatCard title="Deliveries" value={data.total_deliveries} icon={<Car className="text-blue-600 w-5 h-5" />} />
               <StatCard title="Win Rate" value={`${data.conversion_rate}%`} subtitle="Closed-Won Deals" icon={<TrendingUp className="text-indigo-600 w-5 h-5" />} />
+              
+              {/* NEW: Dynamic Best Month Card */}
+              <StatCard 
+                title="Top Month" 
+                value={data.best_month?.month || 'N/A'} 
+                subtitle={data.best_month ? `Generated ₹${(data.best_month.revenue / 10000000).toFixed(2)} Cr` : ''}
+                icon={<Calendar className="text-purple-600 w-5 h-5" />} 
+              />
+
               <StatCard title="Bottlenecks" value={data.stagnant_leads?.length || 0} icon={<AlertTriangle className="text-rose-600 w-5 h-5" />} alert />
               
               <div className="bg-gradient-to-br from-indigo-50 to-white p-5 rounded-2xl border border-indigo-100 shadow-sm relative overflow-hidden">
                 <p className="text-xs font-semibold text-indigo-600 flex items-center gap-1 mb-2"><Zap className="w-3 h-3" /> WHAT-IF FORECAST</p>
                 <p className="text-xl font-bold text-slate-900 tracking-tight">+₹{((data.total_revenue * (conversionLift / 100)) / 100000).toFixed(1)} L</p>
                 <p className="text-xs text-slate-500 mt-1">If win rate improves by {conversionLift}%</p>
-                <input type="range" min="1" max="15" value={conversionLift} onChange={(e) => setConversionLift(e.target.value)} className="w-full mt-3 accent-indigo-600" />
+                {/* UPDATED: Slider max changed to 25 */}
+                <input type="range" min="1" max="25" value={conversionLift} onChange={(e) => setConversionLift(e.target.value)} className="w-full mt-3 accent-indigo-600" />
               </div>
             </div>
 
@@ -272,10 +283,10 @@ export default function Dashboard() {
                           </div>
                           <div>
                             <span className="font-medium text-slate-900 block">{branch.name}</span>
-                            {/* UPDATED: Added the Branch Manager with the User Icon */}
+                            {/* UPDATED: Neutralized BM text color to match the map pin */}
                             <div className="flex flex-wrap items-center gap-3 mt-1">
                               <span className="text-[10px] text-slate-500 flex items-center gap-1"><MapPin className="w-3 h-3"/>{branch.city}</span>
-                              <span className="text-[10px] text-indigo-500 font-medium flex items-center gap-1"><User className="w-3 h-3"/>{branch.manager}</span>
+                              <span className="text-[10px] text-slate-500 flex items-center gap-1"><User className="w-3 h-3"/>{branch.manager}</span>
                             </div>
                           </div>
                         </div>
@@ -333,4 +344,3 @@ function StatCard({ title, value, icon, subtitle, alert }) {
     </div>
   );
 }
-

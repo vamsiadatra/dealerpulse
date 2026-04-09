@@ -86,12 +86,10 @@ def get_metrics(
 
     time_delivered_leads = [l for l in time_filtered_leads if l["status"] == "delivered"]
     
-    # Ranked Branches (ALWAYS GLOBAL, NO SLICE LIMIT)
     branch_perf = []
     for b in branches:
         b_leads = [l for l in time_delivered_leads if l.get("branch_id") == b["id"]]
         
-        # NEW: Find the Branch Manager for this specific branch
         bm_name = "Unassigned"
         for rep in sales_reps:
             if rep.get("branch_id") == b["id"] and rep.get("role") == "branch_manager":
@@ -101,12 +99,11 @@ def get_metrics(
         branch_perf.append({
             "name": b["name"],
             "city": b["city"],
-            "manager": bm_name, # Passed to the frontend
+            "manager": bm_name,
             "revenue": sum([l.get("deal_value", 0) for l in b_leads])
         })
     top_branches = sorted(branch_perf, key=lambda x: x["revenue"], reverse=True)
 
-    # Ranked Reps (FILTERED BY BRANCH, INCLUDES ZERO PERFORMERS)
     rep_leaderboard_leads = time_delivered_leads
     if branch_id != "all":
         rep_leaderboard_leads = [l for l in time_delivered_leads if l.get("branch_id") == branch_id]
@@ -141,6 +138,21 @@ def get_metrics(
     total_revenue = sum([l.get("deal_value", 0) for l in delivered_leads])
     conversion_rate = (len(delivered_leads) / resolved_count * 100) if resolved_count > 0 else 0
 
+    # NEW: Dynamic "Best Month" Calculation
+    monthly_revenue = {}
+    for l in delivered_leads:
+        date_obj = datetime.fromisoformat(l["last_activity_at"].replace("Z", ""))
+        month_key = date_obj.strftime("%b %Y") # e.g., "Nov 2025"
+        monthly_revenue[month_key] = monthly_revenue.get(month_key, 0) + l.get("deal_value", 0)
+
+    best_month = None
+    if monthly_revenue:
+        best_month_key = max(monthly_revenue, key=monthly_revenue.get)
+        best_month = {
+            "month": best_month_key,
+            "revenue": monthly_revenue[best_month_key]
+        }
+
     active_pipeline = []
     active_leads = [l for l in fully_filtered_leads if l["status"] not in ["delivered", "lost"]]
     
@@ -158,7 +170,6 @@ def get_metrics(
         })
         
     active_pipeline = sorted(active_pipeline, key=lambda x: x["days_stagnant"], reverse=True)
-    
     stagnant_leads = [l for l in active_pipeline if l["days_stagnant"] > 7 and l["stage"] != "Order Placed"][:10]
 
     funnel_stages = ["new", "contacted", "test_drive", "negotiation", "order_placed"]
@@ -174,5 +185,6 @@ def get_metrics(
         "active_pipeline": active_pipeline,
         "pipeline_funnel": pipeline_funnel,
         "top_branches": top_branches,
-        "top_reps": top_reps
+        "top_reps": top_reps,
+        "best_month": best_month
     }
