@@ -36,7 +36,12 @@ def get_metrics(
     all_leads = data.get("leads", [])
     branches = data.get("branches", [])
     sales_reps = data.get("sales_reps", [])
-    reps_dict = {rep['id']: rep['name'] for rep in sales_reps}
+    
+    # NEW: Add (BM) tag to the name if their role is branch_manager
+    reps_dict = {
+        rep['id']: f"{rep['name']} (BM)" if rep.get("role") == "branch_manager" else rep['name']
+        for rep in sales_reps
+    }
     
     generated_at_str = data.get("metadata", {}).get("generated_at")
     if generated_at_str:
@@ -93,41 +98,27 @@ def get_metrics(
         })
     top_branches = sorted(branch_perf, key=lambda x: x["revenue"], reverse=True)
 
-    # # Ranked Reps (FILTERED BY BRANCH, NO SLICE LIMIT)
-    # rep_leaderboard_leads = time_delivered_leads
-    # if branch_id != "all":
-    #     rep_leaderboard_leads = [l for l in time_delivered_leads if l.get("branch_id") == branch_id]
-        
-    # rep_perf = {}
-    # for l in rep_leaderboard_leads:
-    #     r_id = l.get("assigned_to")
-    #     rep_perf[r_id] = rep_perf.get(r_id, 0) + l.get("deal_value", 0)
-    # top_reps_list = [{"name": reps_dict.get(r_id, "Unknown"), "revenue": rev} for r_id, rev in rep_perf.items()]
-    # top_reps = sorted(top_reps_list, key=lambda x: x["revenue"], reverse=True)
-
     # Ranked Reps (FILTERED BY BRANCH, INCLUDES ZERO PERFORMERS)
     rep_leaderboard_leads = time_delivered_leads
     if branch_id != "all":
         rep_leaderboard_leads = [l for l in time_delivered_leads if l.get("branch_id") == branch_id]
         
-    # 1. Initialize the dictionary with EVERY valid rep at ₹0
     rep_perf = {}
     for rep in sales_reps:
         if branch_id == "all" or rep.get("branch_id") == branch_id:
             rep_perf[rep['id']] = 0
             
-    # 2. Add the actual revenue for reps who made sales
     for l in rep_leaderboard_leads:
         r_id = l.get("assigned_to")
         if r_id in rep_perf:
             rep_perf[r_id] += l.get("deal_value", 0)
             
-    # 3. Generate the final ranked list
     top_reps_list = [{"name": reps_dict.get(r_id, "Unknown"), "revenue": rev} for r_id, rev in rep_perf.items()]
     top_reps = sorted(top_reps_list, key=lambda x: x["revenue"], reverse=True)
 
-
+    # ==========================================
     # FILTER STAGE 2: BRANCH & REP (For Drill-down KPIs)
+    # ==========================================
     fully_filtered_leads = time_filtered_leads
     
     if branch_id != "all":
