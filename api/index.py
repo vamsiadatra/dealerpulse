@@ -30,7 +30,8 @@ def get_metrics(
     rep_id: Optional[str] = "all",
     timeframe: Optional[str] = "all",
     start_date: Optional[str] = None,
-    end_date: Optional[str] = None
+    end_date: Optional[str] = None,
+    bottleneck_days: int = 7  # NEW: Dynamic parameter for bottleneck threshold
 ):
     data = load_data()
     all_leads = data.get("leads", [])
@@ -42,7 +43,6 @@ def get_metrics(
         for rep in sales_reps
     }
     
-    # NEW: Create a quick dictionary to look up branch names by ID
     branches_dict = {b['id']: b['name'] for b in branches}
     
     generated_at_str = data.get("metadata", {}).get("generated_at")
@@ -167,14 +167,15 @@ def get_metrics(
             "model": lead.get("model_interested", "Unknown"),
             "stage": lead["status"].replace("_", " ").title(),
             "rep_name": reps_dict.get(lead["assigned_to"], "Unknown"),
-            # NEW: Add the branch name to the lead data for the frontend
             "branch_name": branches_dict.get(lead.get("branch_id"), "Unknown Branch"),
             "days_stagnant": days_stagnant,
             "value": lead.get("deal_value", 0)
         })
         
     active_pipeline = sorted(active_pipeline, key=lambda x: x["days_stagnant"], reverse=True)
-    stagnant_leads = [l for l in active_pipeline if l["days_stagnant"] > 7 and l["stage"] != "Order Placed"][:10]
+    
+    # UPDATED: Uses the dynamic bottleneck_days parameter instead of a hard-coded 7
+    stagnant_leads = [l for l in active_pipeline if l["days_stagnant"] >= bottleneck_days and l["stage"] != "Order Placed"][:10]
 
     funnel_stages = ["new", "contacted", "test_drive", "negotiation", "order_placed"]
     pipeline_funnel = [{"stage": s.replace("_", " ").title(), "count": len([l for l in active_leads if l["status"] == s])} for s in funnel_stages]

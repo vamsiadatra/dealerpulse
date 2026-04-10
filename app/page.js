@@ -14,6 +14,9 @@ export default function Dashboard() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [conversionLift, setConversionLift] = useState(5); 
+  
+  // NEW: State for the dynamic bottleneck threshold
+  const [bottleneckDays, setBottleneckDays] = useState(7); 
 
   useEffect(() => {
     setRepFilter("all");
@@ -21,7 +24,8 @@ export default function Dashboard() {
 
   const fetchData = useCallback(() => {
     setLoading(true);
-    let url = `/api/metrics?branch_id=${branchFilter}&rep_id=${repFilter}&timeframe=${timeFilter}`;
+    // UPDATED: Passing the bottleneckDays parameter to the API
+    let url = `/api/metrics?branch_id=${branchFilter}&rep_id=${repFilter}&timeframe=${timeFilter}&bottleneck_days=${bottleneckDays}`;
     if (timeFilter === 'custom' && startDate && endDate) {
       url += `&start_date=${startDate}&end_date=${endDate}`;
     }
@@ -43,17 +47,18 @@ export default function Dashboard() {
         setError(err.message);
         setLoading(false);
       });
-  }, [branchFilter, repFilter, timeFilter, startDate, endDate]);
+  }, [branchFilter, repFilter, timeFilter, startDate, endDate, bottleneckDays]);
 
   useEffect(() => {
     if (timeFilter === 'custom' && (!startDate || !endDate)) return;
     fetchData();
-  }, [fetchData, timeFilter, startDate, endDate]);
+  }, [fetchData, timeFilter, startDate, endDate, bottleneckDays]);
 
   const isRepView = repFilter !== "all";
   const tableData = isRepView ? data?.active_pipeline : data?.stagnant_leads;
   const tableTitle = isRepView ? "Complete Active Pipeline" : "Critical Bottlenecks";
-  const tableSubtitle = isRepView ? "Full inventory of active deals for this representative." : "Leads going cold (>7 days idle).";
+  // UPDATED: Dynamic subtitle to reflect chosen threshold
+  const tableSubtitle = isRepView ? "Full inventory of active deals for this representative." : `Leads going cold (≥${bottleneckDays} days idle).`;
 
   const handleExportCSV = () => {
     if (!tableData || !tableData.length) return;
@@ -92,6 +97,7 @@ export default function Dashboard() {
             <h1 className="text-xl font-bold tracking-tight">Dealer<span className="text-indigo-600">Pulse</span></h1>
           </div>
           <div className="text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full flex items-center gap-2">
+            {/* STRICTLY V2 IDENTIFIER */}
             <span className="text-slate-800 font-bold">v2</span>
             {data?.current_date && (
               <>
@@ -112,6 +118,18 @@ export default function Dashboard() {
           </div>
           
           <div className="flex flex-wrap xl:flex-nowrap gap-3 items-center w-full xl:w-auto xl:justify-end">
+            
+            {/* NEW: Controlled Dropdown for Bottleneck Threshold */}
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 shrink-0">
+              <AlertTriangle className="w-4 h-4 text-rose-500" />
+              <select className="bg-transparent text-sm font-medium text-slate-700 outline-none cursor-pointer" value={bottleneckDays} onChange={(e) => setBottleneckDays(Number(e.target.value))}>
+                <option value={1}>At Risk (1+ Days)</option>
+                <option value={3}>Warning (3+ Days)</option>
+                <option value={7}>Critical (7+ Days)</option>
+                <option value={14}>Dead (14+ Days)</option>
+              </select>
+            </div>
+
             <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 shrink-0">
               <Filter className="w-4 h-4 text-slate-500" />
               <select className="bg-transparent text-sm font-medium text-slate-700 outline-none cursor-pointer" value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)}>
@@ -170,15 +188,17 @@ export default function Dashboard() {
                 subtitle={data.best_month ? `Generated ₹${(data.best_month.revenue / 10000000).toFixed(2)} Cr` : ''}
                 icon={<Calendar className="text-purple-600 w-5 h-5" />} 
               />
+              
+              {/* UPDATED: Dynamic subtitle and tooltip passing bottleneckDays */}
               <StatCard 
                 title="Bottlenecks" 
                 value={data.stagnant_leads?.length || 0} 
+                subtitle={`≥${bottleneckDays} Days Idle`}
                 icon={<AlertTriangle className="text-rose-600 w-5 h-5" />} 
                 alert 
-                tooltip="Active deals that have had no logged activity for over 7 days. High risk of going cold."
+                tooltip={`Active deals that have had no logged activity for over ${bottleneckDays} days. High risk of going cold.`}
               />
               
-              {/* UPDATED WHAT-IF: Added tabIndex="0" and group-focus classes for mobile tap! */}
               <div className="bg-gradient-to-br from-indigo-50 to-white p-5 rounded-2xl border border-indigo-100 shadow-sm relative h-full flex flex-col justify-center">
                 <div className="flex justify-between items-start mb-2">
                   <p className="text-xs font-semibold text-indigo-600 flex items-center gap-1 uppercase tracking-wider">
@@ -267,7 +287,7 @@ export default function Dashboard() {
                               {lead.rep_name}
                               <div className="text-xs text-slate-400 font-normal">{lead.branch_name}</div>
                             </td>
-                            <td className={`px-6 py-4 text-right font-semibold ${lead.days_stagnant > 7 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                            <td className={`px-6 py-4 text-right font-semibold ${lead.days_stagnant >= bottleneckDays ? 'text-rose-600' : 'text-emerald-600'}`}>
                               {lead.days_stagnant} days
                             </td>
                           </tr>
@@ -346,7 +366,6 @@ export default function Dashboard() {
   );
 }
 
-// UPDATED STATCARD: Added tabIndex="0" and group-focus classes for mobile tap!
 function StatCard({ title, value, icon, subtitle, alert, tooltip }) {
   return (
     <div className={`bg-white p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.05)] border transition-all h-full flex flex-col justify-center ${alert ? 'border-rose-200 ring-1 ring-rose-50' : 'border-slate-200'}`}>
