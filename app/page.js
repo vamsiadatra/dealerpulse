@@ -15,7 +15,6 @@ export default function Dashboard() {
   const [endDate, setEndDate] = useState("");
   const [conversionLift, setConversionLift] = useState(5); 
   
-  // NEW: State for the dynamic bottleneck threshold
   const [bottleneckDays, setBottleneckDays] = useState(7); 
 
   useEffect(() => {
@@ -24,7 +23,6 @@ export default function Dashboard() {
 
   const fetchData = useCallback(() => {
     setLoading(true);
-    // UPDATED: Passing the bottleneckDays parameter to the API
     let url = `/api/metrics?branch_id=${branchFilter}&rep_id=${repFilter}&timeframe=${timeFilter}&bottleneck_days=${bottleneckDays}`;
     if (timeFilter === 'custom' && startDate && endDate) {
       url += `&start_date=${startDate}&end_date=${endDate}`;
@@ -57,7 +55,6 @@ export default function Dashboard() {
   const isRepView = repFilter !== "all";
   const tableData = isRepView ? data?.active_pipeline : data?.stagnant_leads;
   const tableTitle = isRepView ? "Complete Active Pipeline" : "Critical Bottlenecks";
-  // UPDATED: Dynamic subtitle to reflect chosen threshold
   const tableSubtitle = isRepView ? "Full inventory of active deals for this representative." : `Leads going cold (≥${bottleneckDays} days idle).`;
 
   const handleExportCSV = () => {
@@ -97,7 +94,6 @@ export default function Dashboard() {
             <h1 className="text-xl font-bold tracking-tight">Dealer<span className="text-indigo-600">Pulse</span></h1>
           </div>
           <div className="text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full flex items-center gap-2">
-            {/* STRICTLY V2 IDENTIFIER */}
             <span className="text-slate-800 font-bold">v2</span>
             {data?.current_date && (
               <>
@@ -119,16 +115,7 @@ export default function Dashboard() {
           
           <div className="flex flex-wrap xl:flex-nowrap gap-3 items-center w-full xl:w-auto xl:justify-end">
             
-            {/* NEW: Controlled Dropdown for Bottleneck Threshold */}
-            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 shrink-0">
-              <AlertTriangle className="w-4 h-4 text-rose-500" />
-              <select className="bg-transparent text-sm font-medium text-slate-700 outline-none cursor-pointer" value={bottleneckDays} onChange={(e) => setBottleneckDays(Number(e.target.value))}>
-                <option value={1}>At Risk (1+ Days)</option>
-                <option value={3}>Warning (3+ Days)</option>
-                <option value={7}>Critical (7+ Days)</option>
-                <option value={14}>Dead (14+ Days)</option>
-              </select>
-            </div>
+            {/* UPDATED: Removed the Bottlenecks dropdown from here entirely */}
 
             <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 shrink-0">
               <Filter className="w-4 h-4 text-slate-500" />
@@ -189,15 +176,25 @@ export default function Dashboard() {
                 icon={<Calendar className="text-purple-600 w-5 h-5" />} 
               />
               
-              {/* UPDATED: Dynamic subtitle and tooltip passing bottleneckDays */}
+              {/* UPDATED: The Bottleneck Dropdown is now natively embedded inside the card! */}
               <StatCard 
                 title="Bottlenecks" 
                 value={data.stagnant_leads?.length || 0} 
-                subtitle={`≥${bottleneckDays} Days Idle`}
                 icon={<AlertTriangle className="text-rose-600 w-5 h-5" />} 
                 alert 
                 tooltip={`Active deals that have had no logged activity for over ${bottleneckDays} days. High risk of going cold.`}
-              />
+              >
+                <select 
+                  className="mt-1.5 bg-rose-50/50 text-rose-700 hover:bg-rose-100 transition-colors text-[10px] font-semibold py-1 px-2 rounded-md outline-none cursor-pointer border border-rose-200 w-fit appearance-none"
+                  value={bottleneckDays} 
+                  onChange={(e) => setBottleneckDays(Number(e.target.value))}
+                >
+                  <option value={1}>At Risk (1+ Days)</option>
+                  <option value={3}>Warning (3+ Days)</option>
+                  <option value={7}>Critical (7+ Days)</option>
+                  <option value={14}>Dead (14+ Days)</option>
+                </select>
+              </StatCard>
               
               <div className="bg-gradient-to-br from-indigo-50 to-white p-5 rounded-2xl border border-indigo-100 shadow-sm relative h-full flex flex-col justify-center">
                 <div className="flex justify-between items-start mb-2">
@@ -366,7 +363,8 @@ export default function Dashboard() {
   );
 }
 
-function StatCard({ title, value, icon, subtitle, alert, tooltip }) {
+// UPDATED: StatCard now accepts a `children` prop to inject custom UI below the metric!
+function StatCard({ title, value, icon, subtitle, alert, tooltip, children }) {
   return (
     <div className={`bg-white p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.05)] border transition-all h-full flex flex-col justify-center ${alert ? 'border-rose-200 ring-1 ring-rose-50' : 'border-slate-200'}`}>
       <div className="flex justify-between items-start w-full">
@@ -384,6 +382,8 @@ function StatCard({ title, value, icon, subtitle, alert, tooltip }) {
           </div>
           <h3 className="text-2xl font-bold text-slate-900 tracking-tight">{value}</h3>
           {subtitle && <p className="text-[10px] font-medium text-slate-400 mt-1">{subtitle}</p>}
+          {/* Renders the injected dropdown specifically for the Bottlenecks card */}
+          {children}
         </div>
         <div className={`p-2.5 rounded-xl shrink-0 ${alert ? 'bg-rose-50' : 'bg-slate-50'}`}>{icon}</div>
       </div>
