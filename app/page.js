@@ -14,6 +14,7 @@ export default function Dashboard() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [conversionLift, setConversionLift] = useState(5); 
+  
   const [bottleneckDays, setBottleneckDays] = useState(7); 
 
   useEffect(() => {
@@ -54,9 +55,7 @@ export default function Dashboard() {
   const isRepView = repFilter !== "all";
   const tableData = isRepView ? data?.active_pipeline : data?.stagnant_leads;
   const tableTitle = isRepView ? "Complete Active Pipeline" : "Critical Bottlenecks";
-  
-  // UPDATED: Added "Top 10" to the subtitle to explain the truncation
-  const tableSubtitle = isRepView ? "Full inventory of active deals for this representative." : `Top 10 leads going cold (≥${bottleneckDays} days idle).`;
+  const tableSubtitle = isRepView ? "Full inventory of active deals for this representative." : `All leads going cold (≥${bottleneckDays} days idle).`;
 
   const handleExportCSV = () => {
     if (!tableData || !tableData.length) return;
@@ -164,7 +163,6 @@ export default function Dashboard() {
         {data && data.total_revenue !== undefined && (
           <>
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-5">
-              {/* UPDATED: Total Revenue now includes the Pending Revenue subtitle */}
               <StatCard 
                 title="Total Revenue" 
                 value={`₹${(data.total_revenue / 10000000).toFixed(2)} Cr`} 
@@ -175,7 +173,6 @@ export default function Dashboard() {
               
               <StatCard title="Deliveries" value={data.total_deliveries} icon={<Car className="text-blue-600 w-5 h-5" />} />
               
-              {/* UPDATED: Win Rate shows the new math */}
               <StatCard 
                 title="Win Rate" 
                 value={`${data.conversion_rate}%`} 
@@ -273,9 +270,11 @@ export default function Dashboard() {
                     )}
                   </div>
                 </div>
-                <div className="overflow-x-auto flex-grow">
-                  <table className="w-full text-sm text-left">
-                    <thead className="bg-slate-50/50 text-slate-500 font-medium border-b border-slate-100">
+                {/* UPDATED: Added max-h-[350px] and overflow-auto to enable scrolling without stretching */}
+                <div className="overflow-auto flex-grow max-h-[350px]">
+                  <table className="w-full text-sm text-left relative">
+                    {/* UPDATED: Added sticky top-0 and z-10 so headers remain visible when scrolling */}
+                    <thead className="bg-slate-50 text-slate-500 font-medium sticky top-0 z-10 shadow-[0_1px_0_0_#e2e8f0]">
                       <tr>
                         <th className="px-6 py-4">Customer</th>
                         <th className="px-6 py-4">Stage</th>
