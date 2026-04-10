@@ -31,7 +31,7 @@ def get_metrics(
     timeframe: Optional[str] = "all",
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
-    bottleneck_days: int = 7  # NEW: Dynamic parameter for bottleneck threshold
+    bottleneck_days: int = 7
 ):
     data = load_data()
     all_leads = data.get("leads", [])
@@ -136,10 +136,16 @@ def get_metrics(
         
     delivered_leads = [l for l in fully_filtered_leads if l["status"] == "delivered"]
     lost_leads = [l for l in fully_filtered_leads if l["status"] == "lost"]
-    resolved_count = len(delivered_leads) + len(lost_leads)
+    # NEW: Isolate Pending Deals
+    pending_deals = [l for l in fully_filtered_leads if l["status"] == "order_placed"]
+    
+    # NEW: Updated Win-Rate Math (Delivered + Order Placed)
+    resolved_count = len(delivered_leads) + len(pending_deals) + len(lost_leads)
+    conversion_rate = ((len(delivered_leads) + len(pending_deals)) / resolved_count * 100) if resolved_count > 0 else 0
     
     total_revenue = sum([l.get("deal_value", 0) for l in delivered_leads])
-    conversion_rate = (len(delivered_leads) / resolved_count * 100) if resolved_count > 0 else 0
+    # NEW: Calculate Pending Revenue
+    pending_revenue = sum([l.get("deal_value", 0) for l in pending_deals])
 
     monthly_revenue = {}
     for l in delivered_leads:
@@ -173,8 +179,6 @@ def get_metrics(
         })
         
     active_pipeline = sorted(active_pipeline, key=lambda x: x["days_stagnant"], reverse=True)
-    
-    # UPDATED: Uses the dynamic bottleneck_days parameter instead of a hard-coded 7
     stagnant_leads = [l for l in active_pipeline if l["days_stagnant"] >= bottleneck_days and l["stage"] != "Order Placed"][:10]
 
     funnel_stages = ["new", "contacted", "test_drive", "negotiation", "order_placed"]
@@ -184,6 +188,7 @@ def get_metrics(
         "current_date": formatted_current_date,
         "filters": {"branches": branches, "reps": sales_reps},
         "total_revenue": total_revenue,
+        "pending_revenue": pending_revenue, # NEW
         "conversion_rate": round(conversion_rate, 1),
         "total_deliveries": len(delivered_leads),
         "stagnant_leads": stagnant_leads,

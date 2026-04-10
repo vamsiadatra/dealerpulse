@@ -14,7 +14,6 @@ export default function Dashboard() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [conversionLift, setConversionLift] = useState(5); 
-  
   const [bottleneckDays, setBottleneckDays] = useState(7); 
 
   useEffect(() => {
@@ -55,7 +54,9 @@ export default function Dashboard() {
   const isRepView = repFilter !== "all";
   const tableData = isRepView ? data?.active_pipeline : data?.stagnant_leads;
   const tableTitle = isRepView ? "Complete Active Pipeline" : "Critical Bottlenecks";
-  const tableSubtitle = isRepView ? "Full inventory of active deals for this representative." : `Leads going cold (≥${bottleneckDays} days idle).`;
+  
+  // UPDATED: Added "Top 10" to the subtitle to explain the truncation
+  const tableSubtitle = isRepView ? "Full inventory of active deals for this representative." : `Top 10 leads going cold (≥${bottleneckDays} days idle).`;
 
   const handleExportCSV = () => {
     if (!tableData || !tableData.length) return;
@@ -114,9 +115,6 @@ export default function Dashboard() {
           </div>
           
           <div className="flex flex-wrap xl:flex-nowrap gap-3 items-center w-full xl:w-auto xl:justify-end">
-            
-            {/* UPDATED: Removed the Bottlenecks dropdown from here entirely */}
-
             <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 shrink-0">
               <Filter className="w-4 h-4 text-slate-500" />
               <select className="bg-transparent text-sm font-medium text-slate-700 outline-none cursor-pointer" value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)}>
@@ -166,9 +164,26 @@ export default function Dashboard() {
         {data && data.total_revenue !== undefined && (
           <>
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-5">
-              <StatCard title="Total Revenue" value={`₹${(data.total_revenue / 10000000).toFixed(2)} Cr`} icon={<IndianRupee className="text-emerald-600 w-5 h-5" />} />
+              {/* UPDATED: Total Revenue now includes the Pending Revenue subtitle */}
+              <StatCard 
+                title="Total Revenue" 
+                value={`₹${(data.total_revenue / 10000000).toFixed(2)} Cr`} 
+                subtitle={`+ ₹${(data.pending_revenue / 100000).toFixed(1)} L Pending`}
+                icon={<IndianRupee className="text-emerald-600 w-5 h-5" />} 
+                tooltip="Recognized revenue from delivered vehicles. Pending revenue represents placed orders awaiting logistics."
+              />
+              
               <StatCard title="Deliveries" value={data.total_deliveries} icon={<Car className="text-blue-600 w-5 h-5" />} />
-              <StatCard title="Win Rate" value={`${data.conversion_rate}%`} subtitle="Closed-Won Deals" icon={<TrendingUp className="text-indigo-600 w-5 h-5" />} />
+              
+              {/* UPDATED: Win Rate shows the new math */}
+              <StatCard 
+                title="Win Rate" 
+                value={`${data.conversion_rate}%`} 
+                subtitle="Delivered + Placed" 
+                icon={<TrendingUp className="text-indigo-600 w-5 h-5" />} 
+                tooltip="Calculated as: (Delivered + Order Placed) / (Delivered + Order Placed + Lost)"
+              />
+              
               <StatCard 
                 title="Top Month" 
                 value={data.best_month?.month || 'N/A'} 
@@ -176,7 +191,6 @@ export default function Dashboard() {
                 icon={<Calendar className="text-purple-600 w-5 h-5" />} 
               />
               
-              {/* UPDATED: The Bottleneck Dropdown is now natively embedded inside the card! */}
               <StatCard 
                 title="Bottlenecks" 
                 value={data.stagnant_leads?.length || 0} 
@@ -363,7 +377,6 @@ export default function Dashboard() {
   );
 }
 
-// UPDATED: StatCard now accepts a `children` prop to inject custom UI below the metric!
 function StatCard({ title, value, icon, subtitle, alert, tooltip, children }) {
   return (
     <div className={`bg-white p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.05)] border transition-all h-full flex flex-col justify-center ${alert ? 'border-rose-200 ring-1 ring-rose-50' : 'border-slate-200'}`}>
@@ -382,7 +395,6 @@ function StatCard({ title, value, icon, subtitle, alert, tooltip, children }) {
           </div>
           <h3 className="text-2xl font-bold text-slate-900 tracking-tight">{value}</h3>
           {subtitle && <p className="text-[10px] font-medium text-slate-400 mt-1">{subtitle}</p>}
-          {/* Renders the injected dropdown specifically for the Bottlenecks card */}
           {children}
         </div>
         <div className={`p-2.5 rounded-xl shrink-0 ${alert ? 'bg-rose-50' : 'bg-slate-50'}`}>{icon}</div>
