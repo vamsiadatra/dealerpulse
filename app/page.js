@@ -87,7 +87,8 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50/50 pb-12 font-sans text-slate-900 selection:bg-indigo-100">
-      <nav className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-10 shadow-sm">
+      {/* UPDATED: Added `relative` to the nav, and placed the absolute loading bar inside it */}
+      <nav className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-40 shadow-sm relative">
         <div className="max-w-[1600px] w-full mx-auto flex justify-between items-center">
           <div className="flex items-center gap-2">
             <div className="bg-indigo-600 p-1.5 rounded-lg"><Car className="text-white w-5 h-5" /></div>
@@ -103,6 +104,10 @@ export default function Dashboard() {
             )}
           </div>
         </div>
+        {/* NEW FULL-WIDTH LOADING BAR */}
+        {loading && (
+          <div className="absolute bottom-0 left-0 w-full h-1 bg-indigo-600 animate-pulse shadow-[0_0_8px_rgba(79,70,229,0.5)]"></div>
+        )}
       </nav>
 
       <div className="max-w-[1600px] w-full mx-auto px-6 mt-8 space-y-6">
@@ -158,7 +163,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {loading && <div className="h-1 bg-indigo-500 animate-pulse rounded-full w-full"></div>}
+        {/* The old loading indicator has been completely removed from here */}
 
         {data && data.total_revenue !== undefined && (
           <>
@@ -270,10 +275,8 @@ export default function Dashboard() {
                     )}
                   </div>
                 </div>
-                {/* UPDATED: Added max-h-[350px] and overflow-auto to enable scrolling without stretching */}
                 <div className="overflow-auto flex-grow max-h-[350px]">
                   <table className="w-full text-sm text-left relative">
-                    {/* UPDATED: Added sticky top-0 and z-10 so headers remain visible when scrolling */}
                     <thead className="bg-slate-50 text-slate-500 font-medium sticky top-0 z-10 shadow-[0_1px_0_0_#e2e8f0]">
                       <tr>
                         <th className="px-6 py-4">Customer</th>
