@@ -179,7 +179,7 @@ def get_metrics(
         })
         
     active_pipeline = sorted(active_pipeline, key=lambda x: x["days_stagnant"], reverse=True)
-    stagnant_leads = [l for l in active_pipeline if l["days_stagnant"] >= bottleneck_days and l["stage"] != "Order Placed"][:10]
+    stagnant_leads = [l for l in active_pipeline if l["days_stagnant"] >= bottleneck_days and l["stage"] != "Order Placed"]
 
     funnel_stages = ["new", "contacted", "test_drive", "negotiation", "order_placed"]
     pipeline_funnel = [{"stage": s.replace("_", " ").title(), "count": len([l for l in active_leads if l["status"] == s])} for s in funnel_stages]
