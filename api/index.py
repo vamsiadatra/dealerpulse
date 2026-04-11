@@ -32,18 +32,39 @@ def format_currency(value):
         return f"₹{value / 10000000:.2f} Cr"
     return f"₹{value / 100000:.1f} L"
 
-def calculate_health_and_nba(deal_value, days_stagnant, stage):
-    stage_weights = {"new": 0, "contacted": 10, "test_drive": 30, "negotiation": 50, "order_placed": 100}
-    stage_weight = stage_weights.get(stage.lower(), 0)
+# def calculate_health_and_nba(deal_value, days_stagnant, stage):
+#     stage_weights = {"new": 0, "contacted": 10, "test_drive": 30, "negotiation": 50, "order_placed": 100}
+#     stage_weight = stage_weights.get(stage.lower(), 0)
     
-    health = 50 + (deal_value / 100000) - (days_stagnant * 4) + (stage_weight * 0.5)
-    health = max(0, min(100, int(health))) 
+#     health = 50 + (deal_value / 100000) - (days_stagnant * 4) + (stage_weight * 0.5)
+#     health = max(0, min(100, int(health))) 
 
+#     nba = "Review deal strategy."
+#     if stage == "new" and days_stagnant > 1: nba = "Immediate Call/Reassign"
+#     elif stage == "test_drive" and days_stagnant > 3: nba = "Send Model Comparison Sheet"
+#     elif stage == "negotiation" and days_stagnant > 5: nba = "Manager Intervention / Offer 2% Concession"
+#     elif days_stagnant > 10: nba = "Move to Nurture Sequence"
+
+def calculate_health_and_nba(deal_value, days_stagnant, stage):
+    # 1. Base progression bonuses
+    stage_bonus = {"new": 0, "contacted": 5, "test_drive": 10, "negotiation": 20, "order_placed": 30}
+    bonus = stage_bonus.get(stage.lower(), 0)
+    
+    # 2. High-value deal bonus (1 point per 5 Lakhs, capped at 15 points)
+    value_bonus = min(15, (deal_value / 500000)) 
+    
+    # 3. Algorithm: Start at 100, penalize 5 pts per idle day, add bonuses
+    health = 100 - (days_stagnant * 5) + bonus + value_bonus
+    health = max(0, min(100, int(health))) # Clamp strictly between 0 and 100
+
+    # 4. Next Best Action Engine
     nba = "Review deal strategy."
     if stage == "new" and days_stagnant > 1: nba = "Immediate Call/Reassign"
     elif stage == "test_drive" and days_stagnant > 3: nba = "Send Model Comparison Sheet"
-    elif stage == "negotiation" and days_stagnant > 5: nba = "Manager Intervention / Offer 2% Concession"
+    elif stage == "negotiation" and days_stagnant > 5: nba = "Manager Intervention / Offer Concession"
     elif days_stagnant > 10: nba = "Move to Nurture Sequence"
+
+    return health, nba
 
     return health, nba
 

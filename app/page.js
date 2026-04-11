@@ -3,12 +3,9 @@ import { useEffect, useState, useCallback } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
 import { IndianRupee, TrendingUp, Car, AlertTriangle, Clock, Filter, Calendar, Download, Zap, Users, Trophy, Medal, MapPin, List, User, Info, Search, ChevronUp, ChevronDown, X, RefreshCw, Sparkles, Target, Timer, Eye, EyeOff } from 'lucide-react';
 
-// NEW: Global Dynamic Currency Formatter
 const formatCurrency = (value) => {
   if (value == null) return "₹0 L";
-  if (value >= 10000000) {
-    return `₹${(value / 10000000).toFixed(2)} Cr`;
-  }
+  if (value >= 10000000) return `₹${(value / 10000000).toFixed(2)} Cr`;
   return `₹${(value / 100000).toFixed(1)} L`;
 };
 
@@ -26,9 +23,7 @@ export default function Dashboard() {
   const [conversionLift, setConversionLift] = useState(5); 
   const [searchTerm, setSearchTerm] = useState("");
   
-  // FIXED: Initial state matches the backend so the first click reverses to 'asc'
   const [sortConfig, setSortConfig] = useState({ key: 'days_stagnant', direction: 'desc' });
-  
   const [repSort, setRepSort] = useState('revenue');
   const [branchSort, setBranchSort] = useState('revenue'); 
   const [productMixSort, setProductMixSort] = useState('revenue'); 
@@ -45,7 +40,7 @@ export default function Dashboard() {
 
   const handleStateReset = () => {
     setBranchFilter("all"); setRepFilter("all"); setTimeFilter("all"); setStartDate(""); setEndDate(""); setBottleneckDays(7); setSearchTerm(""); 
-    setSortConfig({ key: 'days_stagnant', direction: 'desc' }); // FIXED HERE TOO
+    setSortConfig({ key: 'days_stagnant', direction: 'desc' }); 
   };
 
   const fetchData = useCallback(() => {
@@ -124,8 +119,9 @@ export default function Dashboard() {
     return 'bg-white border border-slate-200 text-slate-500 z-10'; 
   };
 
-  const SortHeader = ({ label, sortKey, alignRight }) => (
-    <th className={`px-6 py-4 cursor-pointer hover:bg-slate-100/80 transition-colors select-none ${alignRight ? 'text-right' : 'text-left'}`} onClick={() => handleSort(sortKey)}>
+  // UPDATED: Added width prop to lock column sizes
+  const SortHeader = ({ label, sortKey, alignRight, width }) => (
+    <th className={`px-6 py-4 cursor-pointer hover:bg-slate-100/80 transition-colors select-none ${alignRight ? 'text-right' : 'text-left'} ${width}`} onClick={() => handleSort(sortKey)}>
       <div className={`flex items-center gap-1.5 ${alignRight ? 'justify-end' : 'justify-start'}`}>
         {label}
         {sortConfig.key === sortKey ? (
@@ -140,7 +136,8 @@ export default function Dashboard() {
   const sortedReps = [...(data?.top_reps || [])].map(r => ({...r, avg_deal: r.units > 0 ? r.revenue / r.units : 0})).sort((a, b) => b[repSort] - a[repSort]);
   const maxRepMetric = sortedReps.length > 0 ? sortedReps[0][repSort] : 1;
 
-  const PIE_COLORS = ['#4f46e5', '#0ea5e9', '#10b981', '#f59e0b', '#f43f5e', '#8b5cf6', '#14b8a6', '#f97316', '#a855f7', '#06b6d4', '#ef4444', '#3b82f6'];
+  // UPDATED: Distinct, high-contrast color palette
+  const PIE_COLORS = ['#1E3A8A', '#F59E0B', '#10B981', '#E11D48', '#8B5CF6', '#14B8A6', '#F97316', '#06B6D4', '#4C1D95', '#84CC16', '#BE123C', '#3B82F6'];
 
   let targetGap = 0;
   if (data && data.active_quota) {
@@ -183,7 +180,6 @@ export default function Dashboard() {
 
       <div className={`max-w-[1600px] w-full mx-auto px-6 space-y-6 ${boardroomMode ? 'mt-6' : 'mt-8'}`}>
         
-        {/* Interactive AI Insights */}
         {data?.smart_summaries && (
           <div className="bg-gradient-to-r from-indigo-900 to-slate-900 p-5 rounded-2xl shadow-lg flex flex-col md:flex-row items-center gap-6 text-white border border-indigo-800 transition-all min-h-[90px]">
              <div className="flex items-center gap-3 shrink-0">
@@ -263,10 +259,10 @@ export default function Dashboard() {
 
         {data && (
           <>
-            {/* KPI STRIP */}
             <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-7 gap-4">
               <StatCard title="Total Revenue" value={formatCurrency(data.total_revenue)} subtitle={`+ ${formatCurrency(data.pending_revenue)} Pending`} icon={<IndianRupee className="text-emerald-600 w-5 h-5" />} tooltip="Recognized revenue from delivered vehicles. Pending revenue represents placed orders awaiting logistics."/>
               
+              {/* UPDATED: Quarterly Target Details */}
               <div className="bg-white p-4 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.05)] border border-slate-200 flex flex-col justify-center relative">
                  <div className="flex items-center gap-1 mb-2">
                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Target Pacing</p>
@@ -281,7 +277,7 @@ export default function Dashboard() {
                        <span className="absolute text-[10px] font-bold text-slate-800">{data.quota_pacing}%</span>
                     </div>
                     <div>
-                       <h3 className="text-sm font-bold text-slate-900 tracking-tight">{formatCurrency(data.active_quota)} Goal</h3>
+                       <h3 className="text-sm font-bold text-slate-900 tracking-tight">Quarterly Goal</h3>
                        {targetGap > 0 ? (
                          <p className="text-[10px] font-medium text-rose-500 mt-0.5">{formatCurrency(targetGap)} needed</p>
                        ) : (
@@ -299,7 +295,6 @@ export default function Dashboard() {
               <StatCard title="Bottlenecks" value={data.stagnant_leads?.length || 0} subtitle={`${formatCurrency(data.capital_at_risk)} at Risk`} icon={<AlertTriangle className="text-rose-600 w-5 h-5" />} alert tooltip={`Active deals that have had no logged activity for over ${bottleneckDays} days. The Rupee value shows the capital trapped in these deals.`} />
             </div>
 
-            {/* CHARTS ROW */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               
               <div className="bg-white p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200 flex flex-col h-[300px]">
@@ -408,15 +403,17 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="overflow-auto flex-grow max-h-[400px]">
-                <table className="w-full text-sm text-left relative">
+                {/* UPDATED: table-fixed to stop columns from jumping */}
+                <table className="w-full text-sm text-left relative table-fixed">
                   <thead className="bg-slate-50 text-slate-500 font-medium sticky top-0 z-10 shadow-[0_1px_0_0_#e2e8f0]">
                     <tr className="group">
-                      <SortHeader label="Customer" sortKey="customer" />
-                      <SortHeader label="Est. Revenue" sortKey="value" />
-                      <SortHeader label="Health" sortKey="health_score" />
-                      <th className="px-6 py-3 text-xs font-semibold text-indigo-600">⚡ Next Best Action (AI)</th>
-                      <SortHeader label="Rep" sortKey="rep_name" />
-                      <SortHeader label="Idle" sortKey="days_stagnant" alignRight />
+                      <SortHeader label="Customer" sortKey="customer" width="w-[20%]" />
+                      <SortHeader label="Revenue" sortKey="value" width="w-[15%]" />
+                      <SortHeader label="Health" sortKey="health_score" width="w-[15%]" />
+                      {/* Fixed width for NBA column */}
+                      <th className="px-6 py-3 text-xs font-semibold text-indigo-600 w-[20%]">⚡ AI Action</th>
+                      <SortHeader label="Rep" sortKey="rep_name" width="w-[20%]" />
+                      <SortHeader label="Idle" sortKey="days_stagnant" alignRight width="w-[10%]" />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -425,7 +422,7 @@ export default function Dashboard() {
                     ) : (
                       processedTableData.map((lead) => (
                         <tr key={lead.id} className={`transition-colors group hover:bg-slate-50 border-l-4 ${lead.health_score < 40 ? 'border-l-rose-500' : lead.health_score < 70 ? 'border-l-amber-400' : 'border-l-emerald-400'}`}>
-                          <td className="px-6 py-3 font-medium text-slate-900">{lead.customer} <div className="text-[10px] text-slate-400 font-normal">{lead.model} • {lead.stage}</div></td>
+                          <td className="px-6 py-3 font-medium text-slate-900 truncate" title={lead.customer}>{lead.customer} <div className="text-[10px] text-slate-400 font-normal truncate">{lead.model} • {lead.stage}</div></td>
                           <td className="px-6 py-3 font-semibold text-slate-700">{formatCurrency(lead.value)}</td>
                           
                           <td className="px-6 py-3">
@@ -436,8 +433,8 @@ export default function Dashboard() {
                                 <span className={`text-[10px] font-bold ${lead.health_score < 40 ? 'text-rose-600' : lead.health_score < 70 ? 'text-amber-600' : 'text-emerald-600'}`}>{lead.health_score}</span>
                             </div>
                           </td>
-                          <td className="px-6 py-3 text-[11px] font-semibold text-indigo-700 bg-indigo-50/30">{lead.nba}</td>
-                          <td className="px-6 py-3 text-slate-600 text-xs">{lead.rep_name} <span className="block text-[9px] text-slate-400">{lead.branch_name}</span></td>
+                          <td className="px-6 py-3 text-[11px] font-semibold text-indigo-700 bg-indigo-50/30 truncate" title={lead.nba}>{lead.nba}</td>
+                          <td className="px-6 py-3 text-slate-600 text-xs truncate" title={lead.rep_name}>{lead.rep_name} <span className="block text-[9px] text-slate-400 truncate">{lead.branch_name}</span></td>
                           <td className={`px-6 py-3 text-right font-bold text-slate-600`}>{lead.days_stagnant} d</td>
                         </tr>
                       ))
