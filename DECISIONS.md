@@ -111,3 +111,24 @@ Revenue numbers lack meaning without operational targets. I introduced quota tra
 ### D. Server-Side Aggregation (The "Dumb" Client)
 To guarantee the UI remains highly performant as data scales, I executed a strict separation of concerns:
 * **Heavy Python, Light React:** Shifted 100% of the advanced computation (Health Scoring, NBA generation, Quota Pacing math, Summary generation) to the FastAPI layer. The React frontend now operates as a high-speed "dumb" presentation layer that simply receives numbers and paints them to the DOM, ensuring fluid performance even on lower-end devices.
+
+## 10. Version 3.1: Enterprise Polish, Operational Diagnostics, & Boardroom UX
+
+The final iteration focused on hardening the application for true enterprise deployment. The goal of v3.1 was to eliminate UI regressions, introduce advanced operational diagnostics (Velocity, Burnout, Attribution), and bulletproof the underlying heuristic mathematics to ensure executives can trust the data at a glance.
+
+### A. Executive Presentation & UI Stability
+* **Boardroom Mode:** Engineered a zero-UI presentation state. Executives can toggle an "Eye" icon to instantly hide the interactive filter bars and navigation, creating a clean, full-screen view optimized for projector screens and investor meetings. Includes a native `ESC` key listener for seamless exiting.
+* **Dynamic Currency Formatting:** To prevent unreadable numbers (e.g., "₹1765 L"), I implemented a global formatting engine that intelligently evaluates every financial metric. Values under 1 Crore render in Lakhs (₹18.5 L), while values over the threshold automatically convert to Crores (₹1.76 Cr).
+* **Anti-Shift Table Architecture:** Fixed layout jumping in the AI Bottleneck Table by implementing a strict `table-fixed` DOM structure with hardcoded percentage widths (e.g., `w-[20%]`). Searching or filtering data no longer causes the column headers to jitter.
+* **Bulletproof Sorting:** Rewrote the React sorting algorithm to explicitly check data types. It now enforces strict numeric comparisons for Revenue/Days Idle/Health Scores, preventing JavaScript from alphabetically mis-sorting numbers (e.g., incorrectly ranking 9 higher than 20).
+
+### B. Advanced Financial & Operational Diagnostics
+* **Capital at Risk:** Monetized the bottleneck data by adding a dynamic Rupee calculation to the Bottlenecks KPI, explicitly showing executives how much capital is currently trapped in stagnant deals.
+* **Decoupled Pacing & Target Gaps:** Separated the "Target Pacing" tile from the global dashboard time filters. The backend now groups historical data into specific quarters (Q1, Q2, etc.), allowing executives to review historical quota performance independently. The tile calculates the exact mathematical gap (e.g., "₹45.5 L needed") to hit the active target.
+* **Rep Capacity & Burnout Index:** Upgraded the Sales Rep Leaderboard to track operational load (`• X Active Deals`). The UI dynamically flags reps in red if they exceed a 15-deal threshold, warning managers of impending burnout and pipeline neglect.
+* **Sales Velocity:** Added a KPI tracking the "Average Time to Close" (in days) to monitor the overall speed of the dealership's sales cycle.
+* **Attribution & Mix Charts:** Introduced two new analytical charts using a distinct, high-contrast 12-color hex palette. The **Product Mix** chart features a custom toggle to analyze inventory by either Revenue or Units Sold, while the **Marketing ROI** chart tracks win-rates across top-of-funnel lead sources.
+
+### C. Heuristic Engine Refinement
+* **Deterministic Health Scoring:** Rewrote the AI Health Score mathematics from an arbitrary scale to a highly transparent progression algorithm. Every deal starts at 100. It is penalized 5 points for every day it sits idle, but earns progression bonuses (+5 to +30) as it moves down the funnel, alongside a micro-bonus for high-value capital. 
+* **Intentional AI Generation:** Moved the "Smart Summary" insights behind a user-triggered "Generate Insights" action button. Whenever a global filter is changed (e.g., swapping branches), the AI state resets, ensuring executives don't accidentally read summaries based on outdated dashboard context.
