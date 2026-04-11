@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
-import { IndianRupee, TrendingUp, Car, AlertTriangle, Filter, Calendar, Download, Zap, Users, Trophy, Medal, MapPin, User, Info, Search, ChevronUp, ChevronDown, X, RefreshCw, Sparkles, Target, Timer, Eye, EyeOff } from 'lucide-react';
+import { IndianRupee, TrendingUp, Car, AlertTriangle, Clock, Filter, Calendar, Download, Zap, Users, Trophy, Medal, MapPin, List, User, Info, Search, ChevronUp, ChevronDown, X, RefreshCw, Sparkles, Target, Timer, Eye, EyeOff } from 'lucide-react';
 
 export default function Dashboard() {
   const [data, setData] = useState(null);
@@ -20,7 +20,7 @@ export default function Dashboard() {
   const [sortConfig, setSortConfig] = useState({ key: 'health_score', direction: 'asc' });
   const [repSort, setRepSort] = useState('revenue');
   const [branchSort, setBranchSort] = useState('revenue'); 
-  const [boardroomMode, setBoardroomMode] = useState(false); // NEW: Boardroom Mode
+  const [boardroomMode, setBoardroomMode] = useState(false);
 
   const handleStateReset = () => {
     setBranchFilter("all"); setRepFilter("all"); setTimeFilter("all"); setStartDate(""); setEndDate(""); setBottleneckDays(7); setSearchTerm(""); setSortConfig({ key: 'health_score', direction: 'asc' });
@@ -51,7 +51,8 @@ export default function Dashboard() {
 
   const isRepView = repFilter !== "all";
   const rawTableData = isRepView ? data?.active_pipeline : data?.stagnant_leads;
-  const tableTitle = isRepView ? "Active Pipeline" : "Actionable Bottlenecks";
+  const tableTitle = isRepView ? "Complete Active Pipeline" : "Actionable Bottlenecks";
+  const tableSubtitle = isRepView ? "Full inventory of active deals for this representative." : "Prescriptive view with AI Health Scoring and Next Best Actions.";
   
   let processedTableData = rawTableData ? [...rawTableData] : [];
   if (searchTerm) {
@@ -131,7 +132,7 @@ export default function Dashboard() {
             </button>
           </div>
           <div className="text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full flex items-center gap-2">
-            <span className="text-slate-800 font-bold">v4</span>
+            <span className="text-slate-800 font-bold">v3.1</span>
             {data?.current_date && (
               <><span className="w-1 h-1 rounded-full bg-slate-300"></span><span>{data.current_date}</span></>
             )}
@@ -140,7 +141,6 @@ export default function Dashboard() {
         {loading && <div className="absolute bottom-0 left-0 w-full h-1 bg-indigo-600 animate-pulse shadow-[0_0_8px_rgba(79,70,229,0.5)]"></div>}
       </nav>
 
-      {/* Floating Exit Button for Boardroom Mode */}
       {boardroomMode && (
         <button onClick={() => setBoardroomMode(false)} className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-2 rounded-full shadow-2xl flex items-center gap-2 font-medium hover:bg-slate-800 transition-transform hover:scale-105 animate-in slide-in-from-bottom">
           <EyeOff className="w-4 h-4" /> Exit Boardroom Mode
@@ -149,6 +149,7 @@ export default function Dashboard() {
 
       <div className={`max-w-[1600px] w-full mx-auto px-6 space-y-6 ${boardroomMode ? 'mt-6' : 'mt-8'}`}>
         
+        {/* V3 AI Smart Insights */}
         {data?.smart_summaries && (
           <div className="bg-gradient-to-r from-indigo-900 to-slate-900 p-5 rounded-2xl shadow-lg flex flex-col md:flex-row items-center gap-6 text-white border border-indigo-800">
              <div className="flex items-center gap-3 shrink-0">
@@ -166,7 +167,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Filter Bar - Hidden in Boardroom Mode */}
+        {/* Filter Bar */}
         {!boardroomMode && (
           <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm animate-in fade-in">
             <div className="shrink-0">
@@ -213,8 +214,8 @@ export default function Dashboard() {
 
         {data && (
           <>
-            {/* KPI STRIP - RESTORED ALL TOOLTIPS */}
-            <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-7 gap-4">
+            {/* V3.1 + V2 KPI STRIP (Fully Restored: 8 Items) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4">
               <StatCard title="Total Revenue" value={`₹${(data.total_revenue / 10000000).toFixed(2)} Cr`} subtitle={`+ ₹${(data.pending_revenue / 100000).toFixed(1)} L Pending`} icon={<IndianRupee className="text-emerald-600 w-5 h-5" />} tooltip="Recognized revenue from delivered vehicles. Pending revenue represents placed orders awaiting logistics."/>
               
               <div className="bg-white p-4 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.05)] border border-slate-200 flex flex-col justify-center relative">
@@ -223,15 +224,15 @@ export default function Dashboard() {
                    <TooltipIcon text="Percentage of the quarterly target achieved using Booked + Pending revenue." />
                  </div>
                  <div className="flex items-center gap-3">
-                    <div className="relative w-12 h-12 shrink-0 flex items-center justify-center">
+                    <div className="relative w-10 h-10 shrink-0 flex items-center justify-center">
                        <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
                           <circle cx="18" cy="18" r="16" fill="none" className="stroke-slate-100" strokeWidth="4" />
                           <circle cx="18" cy="18" r="16" fill="none" className="stroke-indigo-600" strokeWidth="4" strokeDasharray="100" strokeDashoffset={100 - data.quota_pacing} strokeLinecap="round" />
                        </svg>
-                       <span className="absolute text-[10px] font-bold text-slate-800">{data.quota_pacing}%</span>
+                       <span className="absolute text-[9px] font-bold text-slate-800">{data.quota_pacing}%</span>
                     </div>
                     <div>
-                       <h3 className="text-base font-bold text-slate-900 tracking-tight">Q1 Target</h3>
+                       <h3 className="text-sm font-bold text-slate-900 tracking-tight">Q1 Target</h3>
                     </div>
                  </div>
                  <div className="absolute top-4 right-4 p-2 rounded-xl bg-slate-50"><Target className="w-4 h-4 text-indigo-600" /></div>
@@ -240,12 +241,14 @@ export default function Dashboard() {
               <StatCard title="Deliveries" value={data.total_deliveries} subtitle={`Out of ${data.total_leads} Leads`} icon={<Car className="text-blue-600 w-5 h-5" />} tooltip="The total number of closed-won deliveries compared to the raw number of leads generated in this timeframe." />
               <StatCard title="Win Rate" value={`${data.conversion_rate}%`} subtitle="Delivered + Placed" icon={<TrendingUp className="text-indigo-600 w-5 h-5" />} tooltip="Calculated as: (Delivered + Order Placed) / (Delivered + Order Placed + Lost)" />
               
-              {/* NEW V4: Velocity */}
-              <StatCard title="Sales Velocity" value={`${data.velocity} Days`} subtitle="Average Time to Close" icon={<Timer className="text-purple-600 w-5 h-5" />} tooltip="The average number of days it takes for a lead to move from creation to final delivery." />
+              {/* RESTORED V2 FEATURE: Top Month */}
+              <StatCard title="Top Month" value={data.best_month?.month || 'N/A'} subtitle={data.best_month ? `₹${(data.best_month.revenue / 10000000).toFixed(2)} Cr` : ''} icon={<Calendar className="text-purple-600 w-5 h-5" />} tooltip="The single highest-grossing month in the selected timeframe." />
+
+              <StatCard title="Sales Velocity" value={`${data.velocity} Days`} subtitle="Average Time to Close" icon={<Timer className="text-cyan-600 w-5 h-5" />} tooltip="The average number of days it takes for a lead to move from creation to final delivery." />
 
               <StatCard title="Bottlenecks" value={data.stagnant_leads?.length || 0} subtitle={`₹${(data.capital_at_risk / 100000).toFixed(1)} L at Risk`} icon={<AlertTriangle className="text-rose-600 w-5 h-5" />} alert tooltip={`Active deals that have had no logged activity for over ${bottleneckDays} days. The Rupee value shows the capital trapped in these deals.`}>
                 <select className="mt-1 bg-rose-50/50 text-rose-700 hover:bg-rose-100 transition-colors text-[10px] font-semibold py-0.5 px-1.5 rounded-md outline-none cursor-pointer border border-rose-200" value={bottleneckDays} onChange={(e) => setBottleneckDays(Number(e.target.value))}>
-                  <option value={1}>🟡 1+ Days</option><option value={3}>🟠 3+ Days</option><option value={7}>🔴 7+ Days</option>
+                  <option value={1}>🟡 1+ Days</option><option value={3}>🟠 3+ Days</option><option value={7}>🔴 7+ Days</option><option value={14}>⚪ 14+ Days</option>
                 </select>
               </StatCard>
 
@@ -266,6 +269,7 @@ export default function Dashboard() {
             {/* CHARTS ROW */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               
+              {/* RESTORED V2 FEATURE: Pipeline Funnel */}
               <div className="bg-white p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200 flex flex-col h-[300px]">
                 <div className="mb-2"><h3 className="text-sm font-semibold text-slate-900">Pipeline Funnel</h3></div>
                 <div className="flex-grow w-full">
@@ -283,7 +287,6 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* NEW V4: Product Mix Donut */}
               <div className="bg-white p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200 flex flex-col h-[300px]">
                 <div className="mb-2 flex items-center gap-1">
                   <h3 className="text-sm font-semibold text-slate-900">Product Mix Revenue</h3>
@@ -298,7 +301,6 @@ export default function Dashboard() {
                       <RechartsTooltip formatter={(value) => `₹${(value/100000).toFixed(1)}L`} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '12px' }}/>
                     </PieChart>
                   </ResponsiveContainer>
-                  {/* Custom Legend */}
                   <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
                     <span className="text-[10px] text-slate-400 block uppercase font-bold tracking-widest">Models</span>
                   </div>
@@ -310,7 +312,6 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* NEW V4: Marketing ROI */}
               <div className="bg-white p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200 flex flex-col h-[300px]">
                 <div className="mb-2 flex items-center gap-1">
                   <h3 className="text-sm font-semibold text-slate-900">Marketing Source ROI</h3>
@@ -322,7 +323,7 @@ export default function Dashboard() {
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                       <XAxis dataKey="source" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
                       <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} tickFormatter={(val) => `${val}%`} />
-                      <RechartsTooltip cursor={{ fill: '#f8fafc' }} formatter={(value, name) => [value + '%', 'Win Rate']} contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }} />
+                      <RechartsTooltip cursor={{ fill: '#f8fafc' }} formatter={(value) => [value + '%', 'Win Rate']} contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }} />
                       <Bar dataKey="win_rate" radius={[4, 4, 0, 0]} barSize={30}>
                         {data.marketing_roi.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.win_rate > 30 ? '#10b981' : '#f59e0b'} />)}
                       </Bar>
@@ -337,9 +338,22 @@ export default function Dashboard() {
               <div className="px-6 py-4 border-b border-slate-100 flex flex-wrap gap-4 justify-between items-center bg-slate-50/30">
                 <div>
                   <h3 className="text-base font-semibold text-slate-900">{tableTitle}</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">Prescriptive view with AI Health Scoring and Next Best Actions.</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{tableSubtitle}</p>
                 </div>
                 <div className="flex flex-wrap gap-3 items-center">
+                  
+                  {/* RESTORED V2 FEATURE: Table Context Badges */}
+                  {!isRepView && (
+                    <span className="hidden sm:inline-flex items-center gap-1.5 bg-rose-50 text-rose-700 text-[10px] font-bold px-2.5 py-1.5 rounded-lg border border-rose-100">
+                      <Clock className="w-3 h-3" /> High Priority
+                    </span>
+                  )}
+                  {isRepView && (
+                    <span className="hidden sm:inline-flex items-center gap-1.5 bg-indigo-50 text-indigo-700 text-[10px] font-bold px-2.5 py-1.5 rounded-lg border border-indigo-100">
+                      <List className="w-3 h-3" /> All Active
+                    </span>
+                  )}
+
                   <div className="relative">
                     <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                     <input type="text" placeholder="Search data..." className="pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg outline-none w-48 transition-all" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}/>
@@ -379,7 +393,7 @@ export default function Dashboard() {
                             </div>
                           </td>
                           <td className="px-6 py-3 text-[11px] font-semibold text-indigo-700 bg-indigo-50/30">{lead.nba}</td>
-                          <td className="px-6 py-3 text-slate-600 text-xs">{lead.rep_name}</td>
+                          <td className="px-6 py-3 text-slate-600 text-xs">{lead.rep_name} <span className="block text-[9px] text-slate-400">{lead.branch_name}</span></td>
                           <td className={`px-6 py-3 text-right font-bold text-slate-600`}>{lead.days_stagnant} d</td>
                         </tr>
                       ))
@@ -417,7 +431,14 @@ export default function Dashboard() {
                             <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm ${getBadgeStyle(index)}`}>{index + 1}</div>
                             <div>
                               <span className="text-xs font-medium text-slate-900 block">{branch.name}</span>
-                              <div className="text-[9px] text-slate-500 font-medium mt-0.5 opacity-70 group-hover:opacity-100">
+                              
+                              {/* RESTORED V2 FEATURE: City & Manager Context */}
+                              <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                                <span className="text-[9px] text-slate-500 flex items-center gap-0.5"><MapPin className="w-2.5 h-2.5"/>{branch.city}</span>
+                                <span className="text-[9px] text-slate-500 flex items-center gap-0.5"><User className="w-2.5 h-2.5"/>{branch.manager}</span>
+                              </div>
+
+                              <div className="text-[9px] text-slate-500 font-medium mt-0.5 opacity-70 group-hover:opacity-100 transition-opacity">
                                 {branchSort === 'avg_deal' ? `${branch.units} Cars` : `Avg Deal: ₹${(branch.avg_deal / 100000).toFixed(1)}L`}
                               </div>
                             </div>
@@ -434,7 +455,6 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Rep Leaderboard with NEW Capacity Tracking */}
               <div className="bg-white p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200 flex flex-col">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-1">
@@ -462,9 +482,8 @@ export default function Dashboard() {
                             <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm ${getBadgeStyle(index)}`}>{index + 1}</div>
                             <div>
                               <span className="text-xs font-medium text-slate-900 block">{rep.name}</span>
-                              <div className="text-[9px] text-slate-500 font-medium mt-0.5 opacity-70 flex gap-2">
+                              <div className="text-[9px] text-slate-500 font-medium mt-0.5 opacity-70 flex gap-2 transition-opacity group-hover:opacity-100">
                                 <span>{repSort === 'avg_deal' ? `${rep.units} Cars` : `Avg: ₹${(rep.avg_deal / 100000).toFixed(1)}L`}</span>
-                                {/* NEW V4: Rep Capacity / Burnout Indicator */}
                                 <span className={rep.active_leads > 15 ? 'text-rose-600 font-bold' : ''}>• {rep.active_leads} Active Deals</span>
                               </div>
                             </div>
@@ -488,7 +507,6 @@ export default function Dashboard() {
   );
 }
 
-// Reusable Tooltip Component to ensure we never lose tooltips again
 function TooltipIcon({ text }) {
   return (
     <div tabIndex="0" className="relative group cursor-pointer focus:outline-none z-20">
