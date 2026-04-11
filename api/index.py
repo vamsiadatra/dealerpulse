@@ -89,7 +89,6 @@ def get_metrics(
 
     time_delivered_leads = [l for l in time_filtered_leads if l["status"] == "delivered"]
     
-    # NEW: Added "units" to the branch performance aggregation
     branch_perf = []
     for b in branches:
         b_leads = [l for l in time_delivered_leads if l.get("branch_id") == b["id"]]
@@ -105,14 +104,12 @@ def get_metrics(
             "revenue": sum([l.get("deal_value", 0) for l in b_leads]),
             "units": len(b_leads)
         })
-    # We let the frontend handle the sorting now since we have a toggle!
     top_branches = branch_perf
 
     rep_leaderboard_leads = time_delivered_leads
     if branch_id != "all":
         rep_leaderboard_leads = [l for l in time_delivered_leads if l.get("branch_id") == branch_id]
         
-    # NEW: Added "units" tracking for Sales Reps
     rep_perf = {}
     for rep in sales_reps:
         if branch_id == "all" or rep.get("branch_id") == branch_id:
@@ -178,7 +175,9 @@ def get_metrics(
         })
         
     active_pipeline = sorted(active_pipeline, key=lambda x: x["days_stagnant"], reverse=True)
-    stagnant_leads = [l for l in active_pipeline if l["days_stagnant"] >= bottleneck_days and l["stage"] != "Order Placed"][:10]
+    
+    # UPDATED: Removed the [:10] truncation!
+    stagnant_leads = [l for l in active_pipeline if l["days_stagnant"] >= bottleneck_days and l["stage"] != "Order Placed"]
 
     funnel_stages = ["new", "contacted", "test_drive", "negotiation", "order_placed"]
     pipeline_funnel = [{"stage": s.replace("_", " ").title(), "count": len([l for l in active_leads if l["status"] == s])} for s in funnel_stages]
@@ -190,7 +189,7 @@ def get_metrics(
         "pending_revenue": pending_revenue, 
         "conversion_rate": round(conversion_rate, 1),
         "total_deliveries": len(delivered_leads),
-        "total_leads": len(fully_filtered_leads), # NEW: Total pipeline context
+        "total_leads": len(fully_filtered_leads), 
         "stagnant_leads": stagnant_leads,
         "active_pipeline": active_pipeline,
         "pipeline_funnel": pipeline_funnel,

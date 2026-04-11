@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { IndianRupee, TrendingUp, Car, AlertTriangle, Clock, Filter, Calendar, Download, Zap, Users, Trophy, Medal, MapPin, List, User, Info, Search, ChevronUp, ChevronDown, X } from 'lucide-react';
+import { IndianRupee, TrendingUp, Car, AlertTriangle, Clock, Filter, Calendar, Download, Zap, Users, Trophy, Medal, MapPin, List, User, Info, Search, ChevronUp, ChevronDown, X, RefreshCw } from 'lucide-react';
 
 export default function Dashboard() {
   const [data, setData] = useState(null);
@@ -19,10 +19,12 @@ export default function Dashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortConfig, setSortConfig] = useState({ key: 'days_stagnant', direction: 'desc' });
   
-  // NEW: Toggles for Leaderboards
-  const [repSort, setRepSort] = useState('revenue'); // 'revenue' | 'units'
+  // NEW: Toggles for BOTH Leaderboards
+  const [repSort, setRepSort] = useState('revenue'); // 'revenue' | 'units' | 'avg_deal'
+  const [branchSort, setBranchSort] = useState('revenue'); // 'revenue' | 'units' | 'avg_deal'
 
-  const handleReset = () => {
+  // UPDATED: Now wipes all table sorting constraints as well
+  const handleStateReset = () => {
     setBranchFilter("all");
     setRepFilter("all");
     setTimeFilter("all");
@@ -30,11 +32,8 @@ export default function Dashboard() {
     setEndDate("");
     setBottleneckDays(7);
     setSearchTerm("");
+    setSortConfig({ key: 'days_stagnant', direction: 'desc' });
   };
-
-  useEffect(() => {
-    setRepFilter("all");
-  }, [branchFilter]);
 
   const fetchData = useCallback(() => {
     setLoading(true);
@@ -62,6 +61,16 @@ export default function Dashboard() {
       });
   }, [branchFilter, repFilter, timeFilter, startDate, endDate, bottleneckDays]);
 
+  // NEW: Dedicated Force Refresh
+  const handleForceRefresh = () => {
+    handleStateReset();
+    fetchData();
+  };
+
+  useEffect(() => {
+    setRepFilter("all");
+  }, [branchFilter]);
+
   useEffect(() => {
     if (timeFilter === 'custom' && (!startDate || !endDate)) return;
     fetchData();
@@ -70,7 +79,7 @@ export default function Dashboard() {
   const isRepView = repFilter !== "all";
   const rawTableData = isRepView ? data?.active_pipeline : data?.stagnant_leads;
   const tableTitle = isRepView ? "Complete Active Pipeline" : "Critical Bottlenecks";
-  const tableSubtitle = isRepView ? "Full inventory of active deals for this representative." : `Top leads going cold (≥${bottleneckDays} days idle).`;
+  const tableSubtitle = isRepView ? "Full inventory of active deals for this representative." : `All leads going cold (≥${bottleneckDays} days idle).`;
 
   let processedTableData = rawTableData ? [...rawTableData] : [];
   
@@ -80,7 +89,7 @@ export default function Dashboard() {
       item.customer.toLowerCase().includes(term) ||
       item.rep_name.toLowerCase().includes(term) ||
       item.model.toLowerCase().includes(term) ||
-      item.stage.toLowerCase().includes(term) // NEW: Added Stage to search
+      item.stage.toLowerCase().includes(term)
     );
   }
 
@@ -155,11 +164,19 @@ export default function Dashboard() {
     </th>
   );
 
-  // NEW: Leaderboard Sorting Logic
-  const sortedBranches = [...(data?.top_branches || [])].sort((a, b) => b.revenue - a.revenue);
-  const maxBranchRev = sortedBranches.length > 0 ? sortedBranches[0].revenue : 1;
+  // NEW: Comprehensive Sorting Logic including Avg Deal Size
+  const sortedBranches = [...(data?.top_branches || [])].map(b => ({
+    ...b,
+    avg_deal: b.units > 0 ? b.revenue / b.units : 0
+  })).sort((a, b) => b[branchSort] - a[branchSort]);
+  
+  const maxBranchMetric = sortedBranches.length > 0 ? sortedBranches[0][branchSort] : 1;
 
-  const sortedReps = [...(data?.top_reps || [])].sort((a, b) => b[repSort] - a[repSort]);
+  const sortedReps = [...(data?.top_reps || [])].map(r => ({
+    ...r,
+    avg_deal: r.units > 0 ? r.revenue / r.units : 0
+  })).sort((a, b) => b[repSort] - a[repSort]);
+  
   const maxRepMetric = sortedReps.length > 0 ? sortedReps[0][repSort] : 1;
 
   if (error) return (
@@ -172,10 +189,22 @@ export default function Dashboard() {
     <div className="min-h-screen bg-slate-50/50 pb-12 font-sans text-slate-900 selection:bg-indigo-100">
       <nav className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-40 shadow-sm relative">
         <div className="max-w-[1600px] w-full mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-2 cursor-pointer group" onClick={handleReset}>
-            <div className="bg-indigo-600 p-1.5 rounded-lg group-hover:bg-indigo-700 transition-colors"><Car className="text-white w-5 h-5" /></div>
-            <h1 className="text-xl font-bold tracking-tight">Dealer<span className="text-indigo-600 group-hover:text-indigo-700 transition-colors">Pulse</span></h1>
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2 cursor-pointer group" onClick={handleStateReset}>
+              <div className="bg-indigo-600 p-1.5 rounded-lg group-hover:bg-indigo-700 transition-colors"><Car className="text-white w-5 h-5" /></div>
+              <h1 className="text-xl font-bold tracking-tight">Dealer<span className="text-indigo-600 group-hover:text-indigo-700 transition-colors">Pulse</span></h1>
+            </div>
+            
+            {/* NEW: Dedicated Hard Refresh Button */}
+            <button 
+              onClick={handleForceRefresh} 
+              className="hidden sm:flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold px-3 py-1.5 rounded-lg transition-colors border border-indigo-200"
+              title="Force sync data from the database"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Sync Data
+            </button>
           </div>
+
           <div className="text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full flex items-center gap-2">
             <span className="text-slate-800 font-bold">v2.1</span>
             {data?.current_date && (
@@ -260,9 +289,9 @@ export default function Dashboard() {
                 tooltip="Recognized revenue from delivered vehicles. Pending revenue represents placed orders awaiting logistics."
               />
               
-              {/* UPDATED: Deliveries now contextualized against Top-of-Funnel Leads */}
+              {/* UPDATED: Renamed back to Deliveries, kept context! */}
               <StatCard 
-                title="Pipeline Volume" 
+                title="Deliveries" 
                 value={data.total_deliveries} 
                 subtitle={`Out of ${data.total_leads} Total Leads`}
                 icon={<Car className="text-blue-600 w-5 h-5" />} 
@@ -291,7 +320,6 @@ export default function Dashboard() {
                 alert 
                 tooltip={`Active deals that have had no logged activity for over ${bottleneckDays} days.`}
               >
-                {/* UPDATED: Emojis integrated into the threshold text */}
                 <select 
                   className="mt-1.5 bg-rose-50/50 text-rose-700 hover:bg-rose-100 transition-colors text-[10px] font-semibold py-1 px-2 rounded-md outline-none cursor-pointer border border-rose-200 w-fit appearance-none"
                   value={bottleneckDays} 
@@ -372,7 +400,6 @@ export default function Dashboard() {
                     <thead className="bg-slate-50 text-slate-500 font-medium sticky top-0 z-10 shadow-[0_1px_0_0_#e2e8f0]">
                       <tr className="group">
                         <SortHeader label="Customer" sortKey="customer" />
-                        {/* UPDATED: Value renamed to Est. Revenue */}
                         <SortHeader label="Est. Revenue" sortKey="value" />
                         <SortHeader label="Stage" sortKey="stage" />
                         <SortHeader label="Assigned Rep" sortKey="rep_name" />
@@ -422,17 +449,21 @@ export default function Dashboard() {
                     <Trophy className="w-5 h-5 text-amber-500" />
                     <h3 className="text-base font-semibold text-slate-900">Ranked Dealerships (Global)</h3>
                   </div>
+                  {/* NEW: 3-Way Toggle for Branch Leaderboard */}
+                  <div className="flex bg-slate-100 rounded-lg p-0.5 border border-slate-200">
+                    <button onClick={() => setBranchSort('revenue')} className={`text-[10px] font-bold px-2 py-1 rounded-md transition-colors ${branchSort === 'revenue' ? 'bg-white shadow-sm text-amber-700' : 'text-slate-500 hover:text-slate-700'}`}>💰 Rev</button>
+                    <button onClick={() => setBranchSort('units')} className={`text-[10px] font-bold px-2 py-1 rounded-md transition-colors ${branchSort === 'units' ? 'bg-white shadow-sm text-amber-700' : 'text-slate-500 hover:text-slate-700'}`}>🚗 Units</button>
+                    <button onClick={() => setBranchSort('avg_deal')} className={`text-[10px] font-bold px-2 py-1 rounded-md transition-colors ${branchSort === 'avg_deal' ? 'bg-white shadow-sm text-amber-700' : 'text-slate-500 hover:text-slate-700'}`}>📊 Avg</button>
+                  </div>
                 </div>
                 <div className="space-y-3 max-h-[260px] overflow-y-auto pr-2">
                   {!sortedBranches || sortedBranches.length === 0 ? (
                     <p className="text-sm text-slate-500">No data for selected timeframe.</p>
                   ) : (
                     sortedBranches.map((branch, index) => {
-                      // Visual Bar Logic
-                      const fillPercentage = maxBranchRev > 0 ? (branch.revenue / maxBranchRev) * 100 : 0;
+                      const fillPercentage = maxBranchMetric > 0 ? (branch[branchSort] / maxBranchMetric) * 100 : 0;
                       return (
-                        <div key={index} className="relative overflow-hidden flex justify-between items-center p-3 rounded-xl bg-slate-50 border border-slate-100 z-0">
-                          {/* THE PROGRESS BAR */}
+                        <div key={index} className="relative overflow-hidden flex justify-between items-center p-3 rounded-xl bg-slate-50 border border-slate-100 z-0 group">
                           <div className="absolute top-0 left-0 h-full bg-amber-50/80 -z-10 transition-all duration-500" style={{ width: `${fillPercentage}%` }}></div>
                           
                           <div className="flex items-center gap-3">
@@ -441,15 +472,18 @@ export default function Dashboard() {
                             </div>
                             <div>
                               <span className="font-medium text-slate-900 block">{branch.name}</span>
-                              <div className="flex flex-wrap items-center gap-3 mt-1">
-                                <span className="text-[10px] text-slate-500 flex items-center gap-1"><MapPin className="w-3 h-3"/>{branch.city}</span>
-                                <span className="text-[10px] text-slate-500 flex items-center gap-1"><User className="w-3 h-3"/>{branch.manager}</span>
+                              <div className="text-[10px] text-slate-500 font-medium mt-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                                {branchSort === 'avg_deal' 
+                                  ? `${branch.units} Cars Sold`
+                                  : `Avg Deal: ₹${(branch.avg_deal / 100000).toFixed(1)}L`
+                                }
                               </div>
                             </div>
                           </div>
                           <div className="text-right">
-                            <span className="font-semibold text-amber-700 block">₹{(branch.revenue / 10000000).toFixed(2)} Cr</span>
-                            <span className="text-[10px] text-slate-400 font-medium">{branch.units} Units</span>
+                            {branchSort === 'revenue' && <span className="font-semibold text-amber-700 block">₹{(branch.revenue / 10000000).toFixed(2)} Cr</span>}
+                            {branchSort === 'units' && <span className="font-semibold text-amber-700 block">{branch.units} <span className="text-[10px] text-amber-600/70">Cars</span></span>}
+                            {branchSort === 'avg_deal' && <span className="font-semibold text-amber-700 block">₹{(branch.avg_deal / 100000).toFixed(1)} L</span>}
                           </div>
                         </div>
                       )
@@ -465,10 +499,11 @@ export default function Dashboard() {
                     <Medal className="w-5 h-5 text-indigo-500" />
                     <h3 className="text-base font-semibold text-slate-900">Ranked Sales Reps ({selectedBranchName})</h3>
                   </div>
-                  {/* NEW: REVENUE VS UNITS TOGGLE */}
+                  {/* UPDATED: 3-Way Toggle for Rep Leaderboard */}
                   <div className="flex bg-slate-100 rounded-lg p-0.5 border border-slate-200">
-                    <button onClick={() => setRepSort('revenue')} className={`text-[10px] font-bold px-2.5 py-1 rounded-md transition-colors ${repSort === 'revenue' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500 hover:text-slate-700'}`}>💰 Rev</button>
-                    <button onClick={() => setRepSort('units')} className={`text-[10px] font-bold px-2.5 py-1 rounded-md transition-colors ${repSort === 'units' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500 hover:text-slate-700'}`}>🚗 Units</button>
+                    <button onClick={() => setRepSort('revenue')} className={`text-[10px] font-bold px-2 py-1 rounded-md transition-colors ${repSort === 'revenue' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500 hover:text-slate-700'}`}>💰 Rev</button>
+                    <button onClick={() => setRepSort('units')} className={`text-[10px] font-bold px-2 py-1 rounded-md transition-colors ${repSort === 'units' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500 hover:text-slate-700'}`}>🚗 Units</button>
+                    <button onClick={() => setRepSort('avg_deal')} className={`text-[10px] font-bold px-2 py-1 rounded-md transition-colors ${repSort === 'avg_deal' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500 hover:text-slate-700'}`}>📊 Avg</button>
                   </div>
                 </div>
                 <div className="space-y-3 max-h-[260px] overflow-y-auto pr-2">
@@ -476,11 +511,9 @@ export default function Dashboard() {
                     <p className="text-sm text-slate-500">No reps found for selected timeframe.</p>
                   ) : (
                     sortedReps.map((rep, index) => {
-                      // Visual Bar Logic
                       const fillPercentage = maxRepMetric > 0 ? (rep[repSort] / maxRepMetric) * 100 : 0;
                       return (
                         <div key={index} className="relative overflow-hidden flex justify-between items-center p-3 rounded-xl bg-slate-50 border border-slate-100 z-0 group">
-                          {/* THE PROGRESS BAR */}
                           <div className="absolute top-0 left-0 h-full bg-indigo-50/80 -z-10 transition-all duration-500" style={{ width: `${fillPercentage}%` }}></div>
 
                           <div className="flex items-center gap-3">
@@ -489,18 +522,18 @@ export default function Dashboard() {
                             </div>
                             <div>
                               <span className="font-medium text-slate-900 block">{rep.name}</span>
-                              {/* NEW: AVG DEAL SIZE */}
                               <div className="text-[10px] text-slate-500 font-medium mt-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                                Avg Deal: {rep.units > 0 ? `₹${(rep.revenue / rep.units / 100000).toFixed(1)}L` : '₹0'}
+                                {repSort === 'avg_deal' 
+                                  ? `${rep.units} Cars Sold`
+                                  : `Avg Deal: ₹${(rep.avg_deal / 100000).toFixed(1)}L`
+                                }
                               </div>
                             </div>
                           </div>
                           <div className="text-right">
-                            {repSort === 'revenue' ? (
-                              <span className="font-semibold text-indigo-600">₹{(rep.revenue / 100000).toFixed(1)} L</span>
-                            ) : (
-                              <span className="font-semibold text-indigo-600">{rep.units} <span className="text-[10px] text-indigo-400">Cars</span></span>
-                            )}
+                            {repSort === 'revenue' && <span className="font-semibold text-indigo-600">₹{(rep.revenue / 100000).toFixed(1)} L</span>}
+                            {repSort === 'units' && <span className="font-semibold text-indigo-600">{rep.units} <span className="text-[10px] text-indigo-400">Cars</span></span>}
+                            {repSort === 'avg_deal' && <span className="font-semibold text-indigo-600">₹{(rep.avg_deal / 100000).toFixed(1)} L</span>}
                           </div>
                         </div>
                       )
@@ -516,7 +549,6 @@ export default function Dashboard() {
   );
 }
 
-// UPDATED: StatCard explicitly sets `relative` and `absolute top-5 right-5` to perfectly align all icons
 function StatCard({ title, value, icon, subtitle, alert, tooltip, children }) {
   return (
     <div className={`bg-white p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.05)] border transition-all h-full flex flex-col justify-center relative ${alert ? 'border-rose-200 ring-1 ring-rose-50' : 'border-slate-200'}`}>
