@@ -87,3 +87,28 @@ I upgraded the static bottlenecks table into a dynamic triage engine for Branch 
 ### D. Enterprise State Management
 * **Two-Tier Refresh System:** Engineered a "Soft Reset" (clicking the logo instantly wipes local filter and sort states) and a "Hard Sync" (a dedicated button in the navbar to bypass the cache and re-fetch raw database metrics).
 * **Global Loading State:** Replaced clunky, screen-blocking loading spinners with a sleek, global progress bar attached to the bottom of the sticky navigation, matching top-tier enterprise platforms.
+
+## 9. Version 3.0: The Prescriptive Command Center & Heuristic AI
+
+The objective for v3 was to graduate the dashboard from **Descriptive** analytics (what happened) to **Prescriptive** analytics (what we should do about it), elevating the tool for CEO and Executive-level decision-making. Crucially, this had to be achieved while maintaining strict adherence to a lightweight, lightning-fast architecture.
+
+### A. Data Synthesis & Enterprise Enrichment
+To build predictive models, the system required data volume and context that the original mock dataset lacked. Instead of introducing a heavy relational database, I built a build-time synthesis architecture:
+* **The Data Mutator Engine:** Engineered a standalone Python script (`generate_v3_data.py`) to programmatically scale the dataset from ~500 to over 1,000 leads, anchoring the temporal context strictly to Q1 2026 (April 1st).
+* **Enterprise Context Injection:** The script enriched the static data with realistic enterprise variables: generated `cost` margins, randomized `lead_source` attribution, and assigned dynamic `quarterly_quota` targets to each branch.
+
+### B. "Heuristic AI" & Prescriptive Action
+Rather than introducing heavy, latency-inducing Large Language Models (LLMs), I engineered a blazingly fast rules-based "Heuristic AI" in the FastAPI backend:
+* **Smart Summaries:** Developed an algorithmic engine that parses pipeline anomalies and generates plain-English executive summaries (Pacing, Risk, and Action items) using zero-latency math and string interpolation.
+* **Multi-Variable Deal Health (0-100):** Replaced basic idle-time alerts with a weighted algorithm. The engine dynamically calculates a Health Score based on deal value (positive weight), days stagnant (negative weight), and funnel stage proximity.
+* **Next Best Action (NBA) Engine:** Programmed the backend to prescribe specific operational tasks (e.g., "Send Model Comparison Sheet" vs. "Manager Intervention") based on the cross-section of a deal's stage and its idle duration.
+
+### C. Target Pacing & Zero-Dependency UI
+Revenue numbers lack meaning without operational targets. I introduced quota tracking while protecting the React bundle size:
+* **Context-Aware Pacing:** The math explicitly rewards reps for secured pipeline: `(Delivered + Order Placed) / Dynamic Quota`. The denominator intelligently swaps between the Global Company Quota and specific Branch Quotas based on user navigation.
+* **Zero-Dependency Visualizations:** To prevent dashboard bloat, I avoided heavy third-party charting libraries for the new metrics. The Target Pacing gauge was built using pure native HTML `<svg>` elements and dynamic CSS `strokeDashoffset`, rendering the visual instantly with zero external dependencies.
+
+### D. Server-Side Aggregation (The "Dumb" Client)
+To guarantee the UI remains highly performant as data scales, I executed a strict separation of concerns:
+* **Heavy Python, Light React:** Shifted 100% of the advanced computation (Health Scoring, NBA generation, Quota Pacing math, Summary generation) to the FastAPI layer. The React frontend now operates as a high-speed "dumb" presentation layer that simply receives numbers and paints them to the DOM, ensuring fluid performance even on lower-end devices.
+* **Global Loading State:** Replaced clunky, screen-blocking loading spinners with a sleek, global progress bar attached to the bottom of the sticky navigation, matching top-tier enterprise platforms.
