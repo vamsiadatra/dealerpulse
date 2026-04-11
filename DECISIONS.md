@@ -132,3 +132,4 @@ The final iteration focused on hardening the application for true enterprise dep
 ### C. Heuristic Engine Refinement
 * **Deterministic Health Scoring:** Rewrote the AI Health Score mathematics from an arbitrary scale to a highly transparent progression algorithm. Every deal starts at 100. It is penalized 5 points for every day it sits idle, but earns progression bonuses (+5 to +30) as it moves down the funnel, alongside a micro-bonus for high-value capital. 
 * **Intentional AI Generation:** Moved the "Smart Summary" insights behind a user-triggered "Generate Insights" action button. Whenever a global filter is changed (e.g., swapping branches), the AI state resets, ensuring executives don't accidentally read summaries based on outdated dashboard context.
+* **Global Loading State:** Replaced clunky, screen-blocking loading spinners with a sleek, global progress bar attached to the bottom of the sticky navigation, matching top-tier enterprise platforms.
