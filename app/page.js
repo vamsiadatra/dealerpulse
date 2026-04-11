@@ -299,7 +299,7 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <div className="overflow-auto flex-grow max-h-[450px]">
-                  <table className="w-full min-w-[1000px] text-sm text-left relative table-fixed">
+                  <table className="w-full min-w-[1001px] text-sm text-left relative table-fixed">
                     <thead className="bg-slate-50 text-slate-500 font-medium sticky top-0 z-10 shadow-[0_1px_0_0_#e2e8f0]">
                       <tr className="group">
                         <SortHeader label="Customer" sortKey="customer" />
