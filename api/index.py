@@ -63,7 +63,7 @@ def get_metrics(
     simulated_now = datetime.fromisoformat(generated_at_str.replace("Z", "")) if generated_at_str else datetime.now()
     formatted_current_date = simulated_now.strftime("%b %d, %Y")
 
-    # Time Filter
+    # RESTORED: All Timeframe Filters
     time_filtered_leads = all_leads
     if timeframe != "all":
         cutoff_start = None
@@ -83,7 +83,6 @@ def get_metrics(
 
     time_delivered_leads = [l for l in time_filtered_leads if l["status"] == "delivered"]
     
-    # Leaderboards
     branch_perf = []
     for b in branches:
         b_leads = [l for l in time_delivered_leads if l.get("branch_id") == b["id"]]
@@ -97,7 +96,6 @@ def get_metrics(
     if branch_id != "all": fully_filtered_leads = [l for l in fully_filtered_leads if l.get("branch_id") == branch_id]
     if rep_id != "all": fully_filtered_leads = [l for l in fully_filtered_leads if l.get("assigned_to") == rep_id]
     
-    # Rep Capacity Tracking
     rep_perf = {rep['id']: {"revenue": 0, "units": 0, "active_leads": 0} for rep in sales_reps if branch_id == "all" or rep.get("branch_id") == branch_id}
     for l in rep_leaderboard_leads:
         r_id = l.get("assigned_to")
@@ -122,7 +120,6 @@ def get_metrics(
     total_revenue = sum([l.get("deal_value", 0) for l in delivered_leads])
     pending_revenue = sum([l.get("deal_value", 0) for l in pending_deals])
 
-    # Top Month Calculation
     monthly_revenue = {}
     for l in delivered_leads:
         date_obj = datetime.fromisoformat(l["last_activity_at"].replace("Z", ""))
@@ -137,7 +134,6 @@ def get_metrics(
             "revenue": monthly_revenue[best_month_key]
         }
 
-    # Sales Velocity
     velocity_days = []
     for l in delivered_leads:
         random.seed(l['id'])
@@ -145,13 +141,15 @@ def get_metrics(
         velocity_days.append(days_to_close)
     avg_velocity = sum(velocity_days) / len(velocity_days) if velocity_days else 0
 
-    # Product Mix & Marketing ROI
+    # UPGRADED: Product Mix now tracks both Revenue AND Units
     product_mix = {}
     marketing_roi = {}
     for l in fully_filtered_leads:
         model = l.get("model_interested", "Unknown")
         if l["status"] == "delivered":
-            product_mix[model] = product_mix.get(model, 0) + l.get("deal_value", 0)
+            if model not in product_mix: product_mix[model] = {"revenue": 0, "units": 0}
+            product_mix[model]["revenue"] += l.get("deal_value", 0)
+            product_mix[model]["units"] += 1
         
         source = l.get("lead_source", "Unknown")
         if source not in marketing_roi: marketing_roi[source] = {"total": 0, "won": 0}
@@ -159,7 +157,7 @@ def get_metrics(
         if l["status"] in ["delivered", "order_placed"]:
             marketing_roi[source]["won"] += 1
 
-    product_mix_chart = [{"name": k, "value": v} for k, v in product_mix.items()]
+    product_mix_chart = [{"name": k, "revenue": v["revenue"], "units": v["units"]} for k, v in product_mix.items()]
     marketing_roi_chart = [{"source": k, "win_rate": int((v["won"]/v["total"])*100) if v["total"]>0 else 0, "leads": v["total"]} for k, v in marketing_roi.items()]
 
     active_quota = data.get('company_quarterly_quota', 100000000)
@@ -167,7 +165,6 @@ def get_metrics(
         branch_data = next((b for b in branches if b['id'] == branch_id), None)
         active_quota = branch_data.get('quarterly_quota', 50000000) if branch_data else 50000000
     
-    # Calculate pacing safely
     quota_pacing = min(100, int(((total_revenue + pending_revenue) / active_quota) * 100)) if active_quota else 0
 
     active_pipeline = []
@@ -215,7 +212,7 @@ def get_metrics(
         "conversion_rate": round(conversion_rate, 1),
         "total_deliveries": len(delivered_leads),
         "total_leads": len(fully_filtered_leads), 
-        "active_quota": active_quota, # NEW: Passing raw quota to React
+        "active_quota": active_quota, 
         "quota_pacing": quota_pacing, 
         "best_month": best_month, 
         "velocity": int(avg_velocity), 

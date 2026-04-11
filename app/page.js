@@ -20,10 +20,18 @@ export default function Dashboard() {
   const [sortConfig, setSortConfig] = useState({ key: 'health_score', direction: 'asc' });
   const [repSort, setRepSort] = useState('revenue');
   const [branchSort, setBranchSort] = useState('revenue'); 
+  const [productMixSort, setProductMixSort] = useState('revenue'); // NEW: Product Mix Toggle
   const [boardroomMode, setBoardroomMode] = useState(false);
-  
-  // NEW: AI Generation State
   const [showAI, setShowAI] = useState(false);
+
+  // NEW: Listen for ESC key to exit boardroom mode
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setBoardroomMode(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handleStateReset = () => {
     setBranchFilter("all"); setRepFilter("all"); setTimeFilter("all"); setStartDate(""); setEndDate(""); setBottleneckDays(7); setSearchTerm(""); setSortConfig({ key: 'health_score', direction: 'asc' });
@@ -41,8 +49,7 @@ export default function Dashboard() {
         setData(json); 
         setLoading(false); 
         setError(null);
-        // Reset AI Insights on any data change so it stays contextually accurate
-        setShowAI(false); 
+        setShowAI(false); // Resets AI context on data load
       }).catch(err => {
         setError(err.message); setLoading(false);
       });
@@ -69,22 +76,18 @@ export default function Dashboard() {
     );
   }
 
-  // BULLETPROOF SORTING LOGIC
+  // BULLETPROOF SORTING
   if (sortConfig.key) {
     processedTableData.sort((a, b) => {
       let aVal = a[sortConfig.key];
       let bVal = b[sortConfig.key];
-      
       if (aVal === null || aVal === undefined) aVal = '';
       if (bVal === null || bVal === undefined) bVal = '';
-
       if (typeof aVal === 'number' && typeof bVal === 'number') {
          return sortConfig.direction === 'asc' ? aVal - bVal : bVal - aVal;
       }
-
       let aStr = String(aVal).toLowerCase();
       let bStr = String(bVal).toLowerCase();
-      
       if (aStr < bStr) return sortConfig.direction === 'asc' ? -1 : 1;
       if (aStr > bStr) return sortConfig.direction === 'asc' ? 1 : -1;
       return 0;
@@ -103,8 +106,6 @@ export default function Dashboard() {
     link.download = `${isRepView ? 'active_pipeline' : 'stagnant_leads'}_${data?.current_date || 'export'}.csv`;
     link.click();
   };
-
-  const selectedBranchName = branchFilter !== 'all' && data?.filters?.branches ? data.filters.branches.find(b => b.id === branchFilter)?.name : 'Global';
 
   const getBadgeStyle = (index) => {
     if (index === 0) return 'bg-amber-200 text-amber-800 ring-2 ring-amber-100 z-10'; 
@@ -129,10 +130,9 @@ export default function Dashboard() {
   const sortedReps = [...(data?.top_reps || [])].map(r => ({...r, avg_deal: r.units > 0 ? r.revenue / r.units : 0})).sort((a, b) => b[repSort] - a[repSort]);
   const maxRepMetric = sortedReps.length > 0 ? sortedReps[0][repSort] : 1;
 
-  // UPDATED: 12 Distinct Colors for the Product Mix Chart
+  // 12 Distinct Colors
   const PIE_COLORS = ['#4f46e5', '#0ea5e9', '#10b981', '#f59e0b', '#f43f5e', '#8b5cf6', '#14b8a6', '#f97316', '#a855f7', '#06b6d4', '#ef4444', '#3b82f6'];
 
-  // Target Gap Calculation
   let targetGap = 0;
   if (data && data.active_quota) {
      targetGap = data.active_quota - (data.total_revenue + data.pending_revenue);
@@ -157,7 +157,7 @@ export default function Dashboard() {
             </button>
           </div>
           <div className="text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full flex items-center gap-2">
-            <span className="text-slate-800 font-bold">v3.1</span>
+            <span className="text-slate-800 font-bold">v4</span>
             {data?.current_date && (
               <><span className="w-1 h-1 rounded-full bg-slate-300"></span><span>{data.current_date}</span></>
             )}
@@ -168,13 +168,13 @@ export default function Dashboard() {
 
       {boardroomMode && (
         <button onClick={() => setBoardroomMode(false)} className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-2 rounded-full shadow-2xl flex items-center gap-2 font-medium hover:bg-slate-800 transition-transform hover:scale-105 animate-in slide-in-from-bottom">
-          <EyeOff className="w-4 h-4" /> Exit Boardroom Mode
+          <EyeOff className="w-4 h-4" /> Exit Boardroom (ESC)
         </button>
       )}
 
       <div className={`max-w-[1600px] w-full mx-auto px-6 space-y-6 ${boardroomMode ? 'mt-6' : 'mt-8'}`}>
         
-        {/* NEW: Interactive AI Executive Summary */}
+        {/* Interactive AI Insights */}
         {data?.smart_summaries && (
           <div className="bg-gradient-to-r from-indigo-900 to-slate-900 p-5 rounded-2xl shadow-lg flex flex-col md:flex-row items-center gap-6 text-white border border-indigo-800 transition-all min-h-[90px]">
              <div className="flex items-center gap-3 shrink-0">
@@ -201,7 +201,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Filter Bar */}
+        {/* RESTORED: Full Time Filter */}
         {!boardroomMode && (
           <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm animate-in fade-in">
             <div className="shrink-0">
@@ -227,7 +227,14 @@ export default function Dashboard() {
               <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 shrink-0">
                 <Calendar className="w-4 h-4 text-slate-500" />
                 <select className="bg-transparent text-sm font-medium text-slate-700 outline-none cursor-pointer" value={timeFilter} onChange={(e) => setTimeFilter(e.target.value)}>
-                  <option value="all">All Time</option><option value="this_quarter">This Quarter</option><option value="custom">Custom Range...</option>
+                  <option value="all">All Time</option>
+                  <option value="today">Today</option>
+                  <option value="this_week">This Week</option>
+                  <option value="this_month">This Month</option>
+                  <option value="this_quarter">This Quarter</option>
+                  <option value="30">Last 30 Days</option>
+                  <option value="90">Last 90 Days</option>
+                  <option value="custom">Custom Range...</option>
                 </select>
               </div>
               {timeFilter === 'custom' && (
@@ -252,7 +259,7 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-7 gap-4">
               <StatCard title="Total Revenue" value={`₹${(data.total_revenue / 10000000).toFixed(2)} Cr`} subtitle={`+ ₹${(data.pending_revenue / 100000).toFixed(1)} L Pending`} icon={<IndianRupee className="text-emerald-600 w-5 h-5" />} tooltip="Recognized revenue from delivered vehicles. Pending revenue represents placed orders awaiting logistics."/>
               
-              {/* UPDATED: Target Pacing w/ Gap Calculation */}
+              {/* Target Pacing w/ Target Mention */}
               <div className="bg-white p-4 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.05)] border border-slate-200 flex flex-col justify-center relative">
                  <div className="flex items-center gap-1 mb-2">
                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Target Pacing</p>
@@ -283,15 +290,8 @@ export default function Dashboard() {
               <StatCard title="Sales Velocity" value={`${data.velocity} Days`} subtitle="Average Time to Close" icon={<Timer className="text-cyan-600 w-5 h-5" />} tooltip="The average number of days it takes for a lead to move from creation to final delivery." />
               <StatCard title="Top Month" value={data.best_month?.month || 'N/A'} subtitle={data.best_month ? `₹${(data.best_month.revenue / 10000000).toFixed(2)} Cr` : ''} icon={<Calendar className="text-purple-600 w-5 h-5" />} tooltip="The single highest-grossing month in the selected timeframe." />
 
-              {/* RESTORED: 14 Day Option */}
-              <StatCard title="Bottlenecks" value={data.stagnant_leads?.length || 0} subtitle={`₹${(data.capital_at_risk / 100000).toFixed(1)} L at Risk`} icon={<AlertTriangle className="text-rose-600 w-5 h-5" />} alert tooltip={`Active deals that have had no logged activity for over ${bottleneckDays} days. The Rupee value shows the capital trapped in these deals.`}>
-                <select className="mt-1 bg-rose-50/50 text-rose-700 hover:bg-rose-100 transition-colors text-[10px] font-semibold py-0.5 px-1.5 rounded-md outline-none cursor-pointer border border-rose-200" value={bottleneckDays} onChange={(e) => setBottleneckDays(Number(e.target.value))}>
-                  <option value={1}>🟡 1+ Days</option>
-                  <option value={3}>🟠 3+ Days</option>
-                  <option value={7}>🔴 7+ Days</option>
-                  <option value={14}>⚪ 14+ Days</option>
-                </select>
-              </StatCard>
+              {/* REMOVED: Redundant Dropdown */}
+              <StatCard title="Bottlenecks" value={data.stagnant_leads?.length || 0} subtitle={`₹${(data.capital_at_risk / 100000).toFixed(1)} L at Risk`} icon={<AlertTriangle className="text-rose-600 w-5 h-5" />} alert tooltip={`Active deals that have had no logged activity for over ${bottleneckDays} days. The Rupee value shows the capital trapped in these deals.`} />
             </div>
 
             {/* CHARTS ROW */}
@@ -314,18 +314,25 @@ export default function Dashboard() {
                 </div>
               </div>
 
+              {/* UPGRADED: Product Mix w/ Revenue & Unit Toggles */}
               <div className="bg-white p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200 flex flex-col h-[300px]">
-                <div className="mb-2 flex items-center gap-1">
-                  <h3 className="text-sm font-semibold text-slate-900">Product Mix Revenue</h3>
-                  <TooltipIcon text="Total recognized revenue broken down by the specific vehicle model sold." />
+                <div className="mb-2 flex items-center justify-between">
+                  <div className="flex items-center gap-1">
+                    <h3 className="text-sm font-semibold text-slate-900">Product Mix</h3>
+                    <TooltipIcon text="Breakdown of delivered vehicles by model, togglable by revenue or units sold." />
+                  </div>
+                  <div className="flex bg-slate-100 rounded-lg p-0.5 border border-slate-200 ml-auto">
+                    <button onClick={() => setProductMixSort('revenue')} className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md transition-colors ${productMixSort === 'revenue' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500'}`}>💰 Rev</button>
+                    <button onClick={() => setProductMixSort('units')} className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md transition-colors ${productMixSort === 'units' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500'}`}>🚗 Units</button>
+                  </div>
                 </div>
                 <div className="flex-grow w-full relative">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie data={data.product_mix} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={2} dataKey="value" stroke="none">
+                      <Pie data={data.product_mix} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={2} dataKey={productMixSort} stroke="none">
                         {data.product_mix.map((entry, index) => <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />)}
                       </Pie>
-                      <RechartsTooltip formatter={(value) => `₹${(value/100000).toFixed(1)}L`} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '12px' }}/>
+                      <RechartsTooltip formatter={(value) => productMixSort === 'revenue' ? `₹${(value/100000).toFixed(1)}L` : `${value} Units`} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '12px' }}/>
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
@@ -380,7 +387,7 @@ export default function Dashboard() {
                     </span>
                   )}
 
-                  {/* RESTORED: 14 Day Option in Table Dropdown */}
+                  {/* SOLE SOURCE OF TRUTH: Bottleneck Filter */}
                   <select className="bg-white text-slate-700 hover:bg-slate-50 transition-colors text-xs font-semibold py-1.5 px-2 rounded-lg outline-none cursor-pointer border border-slate-200 shadow-sm" value={bottleneckDays} onChange={(e) => setBottleneckDays(Number(e.target.value))}>
                     <option value={1}>🟡 1+ Days Idle</option>
                     <option value={3}>🟠 3+ Days Idle</option>
@@ -546,7 +553,6 @@ function TooltipIcon({ text }) {
       <Info className="w-3 h-3 text-slate-300 group-hover:text-slate-500 transition-colors" />
       <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-48 p-2 bg-slate-800 text-white text-[10px] leading-tight rounded-lg opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity pointer-events-none shadow-xl normal-case font-normal tracking-normal text-center">
         {text}
-        {/* Triangle arrow for tooltip */}
         <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
       </div>
     </div>
