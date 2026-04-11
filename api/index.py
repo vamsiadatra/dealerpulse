@@ -93,7 +93,6 @@ def get_metrics(
     
     rep_leaderboard_leads = time_delivered_leads if branch_id == "all" else [l for l in time_delivered_leads if l.get("branch_id") == branch_id]
     
-    # Branch & Rep Filter Logic
     fully_filtered_leads = time_filtered_leads
     if branch_id != "all": fully_filtered_leads = [l for l in fully_filtered_leads if l.get("branch_id") == branch_id]
     if rep_id != "all": fully_filtered_leads = [l for l in fully_filtered_leads if l.get("assigned_to") == rep_id]
@@ -123,7 +122,7 @@ def get_metrics(
     total_revenue = sum([l.get("deal_value", 0) for l in delivered_leads])
     pending_revenue = sum([l.get("deal_value", 0) for l in pending_deals])
 
-    # RESTORED: Top Month Calculation
+    # Top Month Calculation
     monthly_revenue = {}
     for l in delivered_leads:
         date_obj = datetime.fromisoformat(l["last_activity_at"].replace("Z", ""))
@@ -138,11 +137,11 @@ def get_metrics(
             "revenue": monthly_revenue[best_month_key]
         }
 
-    # Sales Velocity (Average Days to Close)
+    # Sales Velocity
     velocity_days = []
     for l in delivered_leads:
-        random.seed(l['id']) # Deterministic fallback
-        days_to_close = random.randint(7, 35) # Simulating if created_at is missing
+        random.seed(l['id'])
+        days_to_close = random.randint(7, 35) 
         velocity_days.append(days_to_close)
     avg_velocity = sum(velocity_days) / len(velocity_days) if velocity_days else 0
 
@@ -167,6 +166,8 @@ def get_metrics(
     if branch_id != "all":
         branch_data = next((b for b in branches if b['id'] == branch_id), None)
         active_quota = branch_data.get('quarterly_quota', 50000000) if branch_data else 50000000
+    
+    # Calculate pacing safely
     quota_pacing = min(100, int(((total_revenue + pending_revenue) / active_quota) * 100)) if active_quota else 0
 
     active_pipeline = []
@@ -195,8 +196,8 @@ def get_metrics(
     stagnant_leads = [l for l in active_pipeline if l["days_stagnant"] >= bottleneck_days and l["stage"] != "Order Placed"]
 
     capital_at_risk = sum([l['value'] for l in stagnant_leads if l["days_stagnant"] >= bottleneck_days])
-
     critical_count = len([l for l in stagnant_leads if l["days_stagnant"] >= 7])
+    
     summaries = [
         f"🎯 Pacing: You are at {quota_pacing}% of your revenue target for this view.",
         f"⚠️ Risk: There are {critical_count} critical deals putting ₹{capital_at_risk/10000000:.2f} Cr at risk.",
@@ -214,8 +215,9 @@ def get_metrics(
         "conversion_rate": round(conversion_rate, 1),
         "total_deliveries": len(delivered_leads),
         "total_leads": len(fully_filtered_leads), 
+        "active_quota": active_quota, # NEW: Passing raw quota to React
         "quota_pacing": quota_pacing, 
-        "best_month": best_month, # RESTORED
+        "best_month": best_month, 
         "velocity": int(avg_velocity), 
         "capital_at_risk": capital_at_risk, 
         "product_mix": product_mix_chart, 
