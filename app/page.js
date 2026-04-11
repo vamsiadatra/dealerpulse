@@ -164,7 +164,7 @@ export default function Dashboard() {
             </button>
           </div>
           <div className="text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full flex items-center gap-2">
-            <span className="text-slate-800 font-bold">v3.1</span>
+            <span className="text-slate-800 font-bold">v4.1</span>
             {data?.current_date && (
               <><span className="w-1 h-1 rounded-full bg-slate-300"></span><span>{data.current_date}</span></>
             )}
@@ -338,43 +338,6 @@ export default function Dashboard() {
                     <button onClick={() => setProductMixSort('units')} className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md transition-colors ${productMixSort === 'units' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500'}`}>🚗 Units</button>
                   </div>
                 </div>
-                <div className="overflow-auto flex-grow max-h-[450px]">
-                  <table className="w-full min-w-[1001px] text-sm text-left relative table-fixed">
-                    <thead className="bg-slate-50 text-slate-500 font-medium sticky top-0 z-10 shadow-[0_1px_0_0_#e2e8f0]">
-                      <tr className="group">
-                        <SortHeader label="Customer" sortKey="customer" />
-                        <SortHeader label="Est. Revenue" sortKey="value" />
-                        {/* NEW V3 FEATURE: Health & NBA */}
-                        <SortHeader label="Health" sortKey="health_score" />
-                        <th className="px-6 py-4 font-semibold text-indigo-600">⚡ Next Best Action (AI)</th>
-                        <SortHeader label="Idle" sortKey="days_stagnant" alignRight />
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {!processedTableData || processedTableData.length === 0 ? (
-                        <tr><td colSpan="5" className="text-center py-8 text-slate-500">No active deals found.</td></tr>
-                      ) : (
-                        processedTableData.map((lead) => (
-                          <tr key={lead.id} className={`transition-colors group hover:bg-slate-50 border-l-4 ${lead.health_score < 40 ? 'border-l-rose-500' : lead.health_score < 70 ? 'border-l-amber-400' : 'border-l-emerald-400'}`}>
-                            <td className="px-6 py-4 font-medium text-slate-900">{lead.customer} <div className="text-xs text-slate-400 font-normal mt-0.5">{lead.model} • {lead.stage}</div></td>
-                            <td className="px-6 py-4 font-semibold text-slate-700">₹{(lead.value / 100000).toFixed(1)}L</td>
-                            
-                            {/* Health Bar */}
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-2">
-                                  <div className="w-12 h-1.5 bg-slate-100 rounded-full overflow-hidden hidden sm:block">
-                                      <div className={`h-full rounded-full ${lead.health_score < 40 ? 'bg-rose-500' : lead.health_score < 70 ? 'bg-amber-400' : 'bg-emerald-400'}`} style={{width: `${lead.health_score}%`}}></div>
-                                  </div>
-                                  <span className={`text-xs font-bold ${lead.health_score < 40 ? 'text-rose-600' : lead.health_score < 70 ? 'text-amber-600' : 'text-emerald-600'}`}>{lead.health_score}</span>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 text-xs font-semibold text-indigo-700 bg-indigo-50/30">{lead.nba}</td>
-                            <td className={`px-6 py-4 text-right font-bold text-slate-600`}>{lead.days_stagnant} d</td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
                 <div className="flex-grow w-full relative">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -453,7 +416,7 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="overflow-auto flex-grow max-h-[400px]">
-                <table className="w-full text-sm text-left relative table-fixed">
+                <table className="w-full min-w-[1000px] text-sm text-left relative table-fixed">
                   <thead className="bg-slate-50 text-slate-500 font-medium sticky top-0 z-10 shadow-[0_1px_0_0_#e2e8f0]">
                     <tr className="group">
                       <SortHeader label="Customer" sortKey="customer" width="w-[20%]" />
