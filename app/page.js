@@ -164,7 +164,7 @@ export default function Dashboard() {
             </button>
           </div>
           <div className="text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full flex items-center gap-2">
-            <span className="text-slate-800 font-bold">v4.1</span>
+            <span className="text-slate-800 font-bold">v3.1</span>
             {data?.current_date && (
               <><span className="w-1 h-1 rounded-full bg-slate-300"></span><span>{data.current_date}</span></>
             )}
