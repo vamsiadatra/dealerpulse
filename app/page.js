@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { IndianRupee, TrendingUp, Car, AlertTriangle, Clock, Filter, Calendar, Download, Zap, Users, Trophy, Medal, MapPin, List, User, Info } from 'lucide-react';
+import { IndianRupee, TrendingUp, Car, AlertTriangle, Clock, Filter, Calendar, Download, Zap, Users, Trophy, Medal, MapPin, List, User, Info, Search, ChevronUp, ChevronDown, X } from 'lucide-react';
 
 export default function Dashboard() {
   const [data, setData] = useState(null);
@@ -14,8 +14,22 @@ export default function Dashboard() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [conversionLift, setConversionLift] = useState(5); 
-  
   const [bottleneckDays, setBottleneckDays] = useState(7); 
+
+  // NEW: State for Search and Sorting
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortConfig, setSortConfig] = useState({ key: 'days_stagnant', direction: 'desc' });
+
+  // NEW: State Reset Function (Logo Click)
+  const handleReset = () => {
+    setBranchFilter("all");
+    setRepFilter("all");
+    setTimeFilter("all");
+    setStartDate("");
+    setEndDate("");
+    setBottleneckDays(7);
+    setSearchTerm("");
+  };
 
   useEffect(() => {
     setRepFilter("all");
@@ -53,14 +67,45 @@ export default function Dashboard() {
   }, [fetchData, timeFilter, startDate, endDate, bottleneckDays]);
 
   const isRepView = repFilter !== "all";
-  const tableData = isRepView ? data?.active_pipeline : data?.stagnant_leads;
+  const rawTableData = isRepView ? data?.active_pipeline : data?.stagnant_leads;
   const tableTitle = isRepView ? "Complete Active Pipeline" : "Critical Bottlenecks";
-  const tableSubtitle = isRepView ? "Full inventory of active deals for this representative." : `All leads going cold (≥${bottleneckDays} days idle).`;
+  const tableSubtitle = isRepView ? "Full inventory of active deals for this representative." : `Top leads going cold (≥${bottleneckDays} days idle).`;
+
+  // NEW: Search & Sort Logic for the Table
+  let processedTableData = rawTableData ? [...rawTableData] : [];
+  
+  if (searchTerm) {
+    processedTableData = processedTableData.filter(item => 
+      item.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.rep_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.model.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }
+
+  if (sortConfig.key) {
+    processedTableData.sort((a, b) => {
+      let aVal = a[sortConfig.key];
+      let bVal = b[sortConfig.key];
+      if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+      if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+      if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }
+
+  const handleSort = (key) => {
+    let direction = 'desc';
+    if (sortConfig.key === key && sortConfig.direction === 'desc') {
+      direction = 'asc';
+    }
+    setSortConfig({ key, direction });
+  };
 
   const handleExportCSV = () => {
-    if (!tableData || !tableData.length) return;
-    const headers = ["Customer", "Model", "Stage", "Sales Rep", "Branch", "Days Stuck"];
-    const csvContent = [headers.join(","), ...tableData.map(l => `"${l.customer}","${l.model}","${l.stage}","${l.rep_name}","${l.branch_name}",${l.days_stagnant}`)].join("\n");
+    if (!processedTableData || !processedTableData.length) return;
+    const headers = ["Customer", "Model", "Value", "Stage", "Sales Rep", "Branch", "Days Stuck"];
+    const csvContent = [headers.join(","), ...processedTableData.map(l => `"${l.customer}","${l.model}",${l.value},"${l.stage}","${l.rep_name}","${l.branch_name}",${l.days_stagnant}`)].join("\n");
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -79,6 +124,37 @@ export default function Dashboard() {
     return 'bg-slate-100 text-slate-500'; 
   };
 
+  // NEW: Row Color Coding Logic based on Severity
+  const getRowSeverityColors = (days) => {
+    if (days >= 14) return 'border-l-4 border-l-slate-400 bg-slate-50/50 hover:bg-slate-100/50'; 
+    if (days >= 7) return 'border-l-4 border-l-rose-500 bg-rose-50/30 hover:bg-rose-100/40'; 
+    if (days >= 3) return 'border-l-4 border-l-orange-400 bg-orange-50/30 hover:bg-orange-100/40'; 
+    if (days >= 1) return 'border-l-4 border-l-amber-400 bg-amber-50/30 hover:bg-amber-100/40'; 
+    return 'border-l-4 border-l-emerald-400 bg-white hover:bg-slate-50'; 
+  };
+  
+  const getTextSeverityColor = (days) => {
+    if (days >= 14) return 'text-slate-500'; 
+    if (days >= 7) return 'text-rose-600'; 
+    if (days >= 3) return 'text-orange-600'; 
+    if (days >= 1) return 'text-amber-600'; 
+    return 'text-emerald-600'; 
+  };
+
+  // NEW: Reusable Sortable Table Header Component
+  const SortHeader = ({ label, sortKey, alignRight }) => (
+    <th className={`px-6 py-4 cursor-pointer hover:bg-slate-100/80 transition-colors select-none ${alignRight ? 'text-right' : 'text-left'}`} onClick={() => handleSort(sortKey)}>
+      <div className={`flex items-center gap-1.5 ${alignRight ? 'justify-end' : 'justify-start'}`}>
+        {label}
+        {sortConfig.key === sortKey ? (
+          sortConfig.direction === 'asc' ? <ChevronUp className="w-3.5 h-3.5 text-indigo-600"/> : <ChevronDown className="w-3.5 h-3.5 text-indigo-600"/>
+        ) : (
+          <ChevronUp className="w-3.5 h-3.5 opacity-0 group-hover:opacity-20 transition-opacity"/>
+        )}
+      </div>
+    </th>
+  );
+
   if (error) return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
       <div className="bg-white p-8 rounded-2xl shadow-lg border border-rose-100 text-center text-rose-600 font-mono text-sm">{error}</div>
@@ -87,12 +163,12 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50/50 pb-12 font-sans text-slate-900 selection:bg-indigo-100">
-      {/* UPDATED: Added `relative` to the nav, and placed the absolute loading bar inside it */}
       <nav className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-40 shadow-sm relative">
         <div className="max-w-[1600px] w-full mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <div className="bg-indigo-600 p-1.5 rounded-lg"><Car className="text-white w-5 h-5" /></div>
-            <h1 className="text-xl font-bold tracking-tight">Dealer<span className="text-indigo-600">Pulse</span></h1>
+          {/* UPDATED: Added handleReset to the logo area for instant refresh */}
+          <div className="flex items-center gap-2 cursor-pointer group" onClick={handleReset}>
+            <div className="bg-indigo-600 p-1.5 rounded-lg group-hover:bg-indigo-700 transition-colors"><Car className="text-white w-5 h-5" /></div>
+            <h1 className="text-xl font-bold tracking-tight">Dealer<span className="text-indigo-600 group-hover:text-indigo-700 transition-colors">Pulse</span></h1>
           </div>
           <div className="text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full flex items-center gap-2">
             <span className="text-slate-800 font-bold">v2</span>
@@ -104,7 +180,6 @@ export default function Dashboard() {
             )}
           </div>
         </div>
-        {/* NEW FULL-WIDTH LOADING BAR */}
         {loading && (
           <div className="absolute bottom-0 left-0 w-full h-1 bg-indigo-600 animate-pulse shadow-[0_0_8px_rgba(79,70,229,0.5)]"></div>
         )}
@@ -153,17 +228,21 @@ export default function Dashboard() {
               </select>
             </div>
 
+            {/* UPDATED: Inline Custom Date Picker with a clean 'X' to reset */}
             {timeFilter === 'custom' && (
-              <div className="flex items-center gap-2 animate-in fade-in zoom-in duration-200 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 shrink-0">
-                <input type="date" className="text-sm bg-transparent outline-none text-slate-700 cursor-pointer" value={startDate} onChange={e => setStartDate(e.target.value)} />
-                <span className="text-slate-400 text-sm font-medium">to</span>
-                <input type="date" className="text-sm bg-transparent outline-none text-slate-700 cursor-pointer" value={endDate} onChange={e => setEndDate(e.target.value)} />
+              <div className="flex items-center gap-2 animate-in fade-in zoom-in duration-200 bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-1.5 shrink-0">
+                <input type="date" className="text-sm bg-transparent outline-none text-indigo-900 cursor-pointer" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                <span className="text-indigo-400 text-sm font-medium">to</span>
+                <input type="date" className="text-sm bg-transparent outline-none text-indigo-900 cursor-pointer" value={endDate} onChange={e => setEndDate(e.target.value)} />
+                {(startDate || endDate) && (
+                  <button onClick={() => {setStartDate(''); setEndDate('');}} className="ml-1 p-1 hover:bg-indigo-100 rounded-full transition-colors text-indigo-600">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
             )}
           </div>
         </div>
-
-        {/* The old loading indicator has been completely removed from here */}
 
         {data && data.total_revenue !== undefined && (
           <>
@@ -213,22 +292,22 @@ export default function Dashboard() {
               </StatCard>
               
               <div className="bg-gradient-to-br from-indigo-50 to-white p-5 rounded-2xl border border-indigo-100 shadow-sm relative h-full flex flex-col justify-center">
-                <div className="flex justify-between items-start mb-2">
+                <div className="flex justify-between items-start mb-2 pr-10">
                   <p className="text-xs font-semibold text-indigo-600 flex items-center gap-1 uppercase tracking-wider">
                     <Zap className="w-3 h-3" /> What-If
                   </p>
-                  <div tabIndex="0" className="relative group cursor-pointer focus:outline-none">
+                  <div tabIndex="0" className="relative group cursor-pointer focus:outline-none ml-2 z-20">
                     <Info className="w-4 h-4 text-indigo-300 group-hover:text-indigo-500 group-focus:text-indigo-500 transition-colors" />
-                    <div className="absolute right-0 bottom-full mb-2 w-48 p-2 bg-slate-800 text-white text-[10px] leading-tight rounded-lg opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity pointer-events-none z-50 shadow-xl">
+                    <div className="absolute right-0 bottom-full mb-2 w-48 p-2 bg-slate-800 text-white text-[10px] leading-tight rounded-lg opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity pointer-events-none shadow-xl">
                       Calculates the potential revenue gain if the win-rate of the current active pipeline improves.
                     </div>
                   </div>
                 </div>
-                <div>
+                <div className="pr-10">
                   <h3 className="text-2xl font-bold text-slate-900 tracking-tight">+₹{((data.total_revenue * (conversionLift / 100)) / 100000).toFixed(1)} L</h3>
                   <p className="text-[10px] font-medium text-slate-500 mt-1">If win rate improves by {conversionLift}%</p>
                 </div>
-                <input type="range" min="1" max="25" value={conversionLift} onChange={(e) => setConversionLift(e.target.value)} className="w-full mt-3 accent-indigo-600" />
+                <input type="range" min="1" max="25" value={conversionLift} onChange={(e) => setConversionLift(e.target.value)} className="w-full mt-3 accent-indigo-600 relative z-10" />
               </div>
             </div>
 
@@ -254,53 +333,64 @@ export default function Dashboard() {
               </div>
 
               <div className="bg-white rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200 overflow-hidden lg:col-span-2 flex flex-col">
-                <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center">
+                <div className="px-6 py-5 border-b border-slate-100 flex flex-wrap gap-4 justify-between items-center bg-slate-50/30">
                   <div>
                     <h3 className="text-base font-semibold text-slate-900">{tableTitle}</h3>
                     <p className="text-xs text-slate-500 mt-1">{tableSubtitle}</p>
                   </div>
-                  <div className="flex gap-2">
-                    <button onClick={handleExportCSV} className="inline-flex items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-600 text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 transition-colors">
+                  <div className="flex flex-wrap gap-3 items-center">
+                    {/* NEW: Live Search Input */}
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                      <input 
+                        type="text" 
+                        placeholder="Search customer or rep..." 
+                        className="pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 w-48 transition-all"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                    </div>
+                    <button onClick={handleExportCSV} className="inline-flex items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-600 text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 transition-colors shadow-sm">
                       <Download className="w-3.5 h-3.5" /> Export CSV
                     </button>
-                    {!isRepView && (
-                      <span className="inline-flex items-center gap-1.5 bg-rose-50 text-rose-700 text-xs font-semibold px-3 py-1.5 rounded-lg border border-rose-100">
-                        <Clock className="w-3.5 h-3.5" /> High Priority
-                      </span>
-                    )}
-                    {isRepView && (
-                      <span className="inline-flex items-center gap-1.5 bg-indigo-50 text-indigo-700 text-xs font-semibold px-3 py-1.5 rounded-lg border border-indigo-100">
-                        <List className="w-3.5 h-3.5" /> All Active
-                      </span>
-                    )}
                   </div>
                 </div>
                 <div className="overflow-auto flex-grow max-h-[350px]">
                   <table className="w-full text-sm text-left relative">
                     <thead className="bg-slate-50 text-slate-500 font-medium sticky top-0 z-10 shadow-[0_1px_0_0_#e2e8f0]">
-                      <tr>
-                        <th className="px-6 py-4">Customer</th>
-                        <th className="px-6 py-4">Stage</th>
-                        <th className="px-6 py-4">Assigned Rep</th>
-                        <th className="px-6 py-4 text-right">Time Idle</th>
+                      {/* UPDATED: Interactive Sortable Headers */}
+                      <tr className="group">
+                        <SortHeader label="Customer" sortKey="customer" />
+                        <SortHeader label="Value" sortKey="value" />
+                        <SortHeader label="Stage" sortKey="stage" />
+                        <SortHeader label="Assigned Rep" sortKey="rep_name" />
+                        <SortHeader label="Time Idle" sortKey="days_stagnant" alignRight />
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {!tableData || tableData.length === 0 ? (
-                        <tr><td colSpan="4" className="text-center py-8 text-slate-500">No active deals found for this selection.</td></tr>
+                      {!processedTableData || processedTableData.length === 0 ? (
+                        <tr><td colSpan="5" className="text-center py-8 text-slate-500">No active deals found matching your criteria.</td></tr>
                       ) : (
-                        tableData.map((lead) => (
-                          <tr key={lead.id} className="hover:bg-slate-50/80 transition-colors group">
+                        processedTableData.map((lead) => (
+                          // UPDATED: Advanced Row Color Coding based on Severity
+                          <tr key={lead.id} className={`transition-colors group ${getRowSeverityColors(lead.days_stagnant)}`}>
                             <td className="px-6 py-4 font-medium text-slate-900">
                               {lead.customer} 
-                              <div className="text-xs text-slate-400 font-normal">{lead.model} • ₹{(lead.value / 100000).toFixed(1)}L</div>
+                              <div className="text-xs text-slate-400 font-normal mt-0.5">{lead.model}</div>
                             </td>
-                            <td className="px-6 py-4"><span className="px-2.5 py-1 rounded-md text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200/50">{lead.stage}</span></td>
+                            <td className="px-6 py-4 font-semibold text-slate-700">
+                              ₹{(lead.value / 100000).toFixed(1)}L
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200/50">
+                                {lead.stage}
+                              </span>
+                            </td>
                             <td className="px-6 py-4 text-slate-600">
                               {lead.rep_name}
-                              <div className="text-xs text-slate-400 font-normal">{lead.branch_name}</div>
+                              <div className="text-xs text-slate-400 font-normal mt-0.5">{lead.branch_name}</div>
                             </td>
-                            <td className={`px-6 py-4 text-right font-semibold ${lead.days_stagnant >= bottleneckDays ? 'text-rose-600' : 'text-emerald-600'}`}>
+                            <td className={`px-6 py-4 text-right font-bold ${getTextSeverityColor(lead.days_stagnant)}`}>
                               {lead.days_stagnant} days
                             </td>
                           </tr>
@@ -313,7 +403,6 @@ export default function Dashboard() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
-              
               <div className="bg-white p-6 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200 flex flex-col">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
@@ -379,27 +468,28 @@ export default function Dashboard() {
   );
 }
 
+// UPDATED: StatCard explicitly sets `relative` and `absolute right-5` to perfectly align all top-right icons
 function StatCard({ title, value, icon, subtitle, alert, tooltip, children }) {
   return (
-    <div className={`bg-white p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.05)] border transition-all h-full flex flex-col justify-center ${alert ? 'border-rose-200 ring-1 ring-rose-50' : 'border-slate-200'}`}>
-      <div className="flex justify-between items-start w-full">
-        <div>
-          <div className="flex items-center gap-1.5 mb-1">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">{title}</p>
-            {tooltip && (
-              <div tabIndex="0" className="relative group cursor-pointer focus:outline-none">
-                <Info className="w-3.5 h-3.5 text-slate-300 group-hover:text-slate-500 group-focus:text-slate-500 transition-colors" />
-                <div className="absolute left-0 bottom-full mb-2 w-48 p-2 bg-slate-800 text-white text-[10px] leading-tight rounded-lg opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity pointer-events-none z-50 shadow-xl normal-case font-normal tracking-normal">
-                  {tooltip}
-                </div>
+    <div className={`bg-white p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.05)] border transition-all h-full flex flex-col justify-center relative ${alert ? 'border-rose-200 ring-1 ring-rose-50' : 'border-slate-200'}`}>
+      <div className="w-full pr-10">
+        <div className="flex items-center gap-1.5 mb-1">
+          <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">{title}</p>
+          {tooltip && (
+            <div tabIndex="0" className="relative group cursor-pointer focus:outline-none z-20">
+              <Info className="w-3.5 h-3.5 text-slate-300 group-hover:text-slate-500 group-focus:text-slate-500 transition-colors" />
+              <div className="absolute left-0 bottom-full mb-2 w-48 p-2 bg-slate-800 text-white text-[10px] leading-tight rounded-lg opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity pointer-events-none shadow-xl normal-case font-normal tracking-normal">
+                {tooltip}
               </div>
-            )}
-          </div>
-          <h3 className="text-2xl font-bold text-slate-900 tracking-tight">{value}</h3>
-          {subtitle && <p className="text-[10px] font-medium text-slate-400 mt-1">{subtitle}</p>}
-          {children}
+            </div>
+          )}
         </div>
-        <div className={`p-2.5 rounded-xl shrink-0 ${alert ? 'bg-rose-50' : 'bg-slate-50'}`}>{icon}</div>
+        <h3 className="text-2xl font-bold text-slate-900 tracking-tight">{value}</h3>
+        {subtitle && <p className="text-[10px] font-medium text-slate-400 mt-1">{subtitle}</p>}
+        {children}
+      </div>
+      <div className={`absolute top-5 right-5 p-2.5 rounded-xl ${alert ? 'bg-rose-50' : 'bg-slate-50'}`}>
+        {icon}
       </div>
     </div>
   );
