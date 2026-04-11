@@ -62,13 +62,27 @@ export default function Dashboard() {
     );
   }
 
+  // BULLETPROOF SORTING LOGIC
   if (sortConfig.key) {
     processedTableData.sort((a, b) => {
-      let aVal = a[sortConfig.key]; let bVal = b[sortConfig.key];
-      if (typeof aVal === 'string') aVal = aVal.toLowerCase();
-      if (typeof bVal === 'string') bVal = bVal.toLowerCase();
-      if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-      if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+      let aVal = a[sortConfig.key];
+      let bVal = b[sortConfig.key];
+      
+      // Handle missing values securely
+      if (aVal === null || aVal === undefined) aVal = '';
+      if (bVal === null || bVal === undefined) bVal = '';
+
+      // Strict Numeric Comparison (Solves the Revenue/Idle/Health sorting bug)
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+         return sortConfig.direction === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+
+      // String Comparison
+      let aStr = String(aVal).toLowerCase();
+      let bStr = String(bVal).toLowerCase();
+      
+      if (aStr < bStr) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aStr > bStr) return sortConfig.direction === 'asc' ? 1 : -1;
       return 0;
     });
   }
@@ -132,7 +146,7 @@ export default function Dashboard() {
             </button>
           </div>
           <div className="text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full flex items-center gap-2">
-            <span className="text-slate-800 font-bold">v3.1</span>
+            <span className="text-slate-800 font-bold">v4</span>
             {data?.current_date && (
               <><span className="w-1 h-1 rounded-full bg-slate-300"></span><span>{data.current_date}</span></>
             )}
@@ -149,7 +163,6 @@ export default function Dashboard() {
 
       <div className={`max-w-[1600px] w-full mx-auto px-6 space-y-6 ${boardroomMode ? 'mt-6' : 'mt-8'}`}>
         
-        {/* V3 AI Smart Insights */}
         {data?.smart_summaries && (
           <div className="bg-gradient-to-r from-indigo-900 to-slate-900 p-5 rounded-2xl shadow-lg flex flex-col md:flex-row items-center gap-6 text-white border border-indigo-800">
              <div className="flex items-center gap-3 shrink-0">
@@ -167,7 +180,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Filter Bar */}
         {!boardroomMode && (
           <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm animate-in fade-in">
             <div className="shrink-0">
@@ -214,8 +226,8 @@ export default function Dashboard() {
 
         {data && (
           <>
-            {/* V3.1 + V2 KPI STRIP (Fully Restored: 8 Items) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4">
+            {/* KPI STRIP - RESTORED TOP MONTH & ALL TOOLTIPS */}
+            <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-7 gap-4">
               <StatCard title="Total Revenue" value={`₹${(data.total_revenue / 10000000).toFixed(2)} Cr`} subtitle={`+ ₹${(data.pending_revenue / 100000).toFixed(1)} L Pending`} icon={<IndianRupee className="text-emerald-600 w-5 h-5" />} tooltip="Recognized revenue from delivered vehicles. Pending revenue represents placed orders awaiting logistics."/>
               
               <div className="bg-white p-4 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.05)] border border-slate-200 flex flex-col justify-center relative">
@@ -224,15 +236,15 @@ export default function Dashboard() {
                    <TooltipIcon text="Percentage of the quarterly target achieved using Booked + Pending revenue." />
                  </div>
                  <div className="flex items-center gap-3">
-                    <div className="relative w-10 h-10 shrink-0 flex items-center justify-center">
+                    <div className="relative w-12 h-12 shrink-0 flex items-center justify-center">
                        <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
                           <circle cx="18" cy="18" r="16" fill="none" className="stroke-slate-100" strokeWidth="4" />
                           <circle cx="18" cy="18" r="16" fill="none" className="stroke-indigo-600" strokeWidth="4" strokeDasharray="100" strokeDashoffset={100 - data.quota_pacing} strokeLinecap="round" />
                        </svg>
-                       <span className="absolute text-[9px] font-bold text-slate-800">{data.quota_pacing}%</span>
+                       <span className="absolute text-[10px] font-bold text-slate-800">{data.quota_pacing}%</span>
                     </div>
                     <div>
-                       <h3 className="text-sm font-bold text-slate-900 tracking-tight">Q1 Target</h3>
+                       <h3 className="text-base font-bold text-slate-900 tracking-tight">Q1 Target</h3>
                     </div>
                  </div>
                  <div className="absolute top-4 right-4 p-2 rounded-xl bg-slate-50"><Target className="w-4 h-4 text-indigo-600" /></div>
@@ -241,35 +253,22 @@ export default function Dashboard() {
               <StatCard title="Deliveries" value={data.total_deliveries} subtitle={`Out of ${data.total_leads} Leads`} icon={<Car className="text-blue-600 w-5 h-5" />} tooltip="The total number of closed-won deliveries compared to the raw number of leads generated in this timeframe." />
               <StatCard title="Win Rate" value={`${data.conversion_rate}%`} subtitle="Delivered + Placed" icon={<TrendingUp className="text-indigo-600 w-5 h-5" />} tooltip="Calculated as: (Delivered + Order Placed) / (Delivered + Order Placed + Lost)" />
               
-              {/* RESTORED V2 FEATURE: Top Month */}
-              <StatCard title="Top Month" value={data.best_month?.month || 'N/A'} subtitle={data.best_month ? `₹${(data.best_month.revenue / 10000000).toFixed(2)} Cr` : ''} icon={<Calendar className="text-purple-600 w-5 h-5" />} tooltip="The single highest-grossing month in the selected timeframe." />
-
               <StatCard title="Sales Velocity" value={`${data.velocity} Days`} subtitle="Average Time to Close" icon={<Timer className="text-cyan-600 w-5 h-5" />} tooltip="The average number of days it takes for a lead to move from creation to final delivery." />
+
+              {/* RESTORED: Top Month Calculation is back and functional! */}
+              <StatCard title="Top Month" value={data.best_month?.month || 'N/A'} subtitle={data.best_month ? `₹${(data.best_month.revenue / 10000000).toFixed(2)} Cr` : ''} icon={<Calendar className="text-purple-600 w-5 h-5" />} tooltip="The single highest-grossing month in the selected timeframe." />
 
               <StatCard title="Bottlenecks" value={data.stagnant_leads?.length || 0} subtitle={`₹${(data.capital_at_risk / 100000).toFixed(1)} L at Risk`} icon={<AlertTriangle className="text-rose-600 w-5 h-5" />} alert tooltip={`Active deals that have had no logged activity for over ${bottleneckDays} days. The Rupee value shows the capital trapped in these deals.`}>
                 <select className="mt-1 bg-rose-50/50 text-rose-700 hover:bg-rose-100 transition-colors text-[10px] font-semibold py-0.5 px-1.5 rounded-md outline-none cursor-pointer border border-rose-200" value={bottleneckDays} onChange={(e) => setBottleneckDays(Number(e.target.value))}>
-                  <option value={1}>🟡 1+ Days</option><option value={3}>🟠 3+ Days</option><option value={7}>🔴 7+ Days</option><option value={14}>⚪ 14+ Days</option>
+                  <option value={1}>🟡 1+ Days</option><option value={3}>🟠 3+ Days</option><option value={7}>🔴 7+ Days</option>
                 </select>
               </StatCard>
 
-              {/* WHAT-IF SLIDER */}
-              <div className="bg-gradient-to-br from-indigo-50 to-white p-4 rounded-2xl border border-indigo-100 shadow-sm relative h-full flex flex-col justify-center">
-                <div className="flex items-center gap-1 mb-2">
-                  <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider flex items-center gap-1"><Zap className="w-3 h-3" /> What-If</p>
-                  <TooltipIcon text="Calculates the potential revenue gain if the win-rate of the current active pipeline improves." />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold text-slate-900 tracking-tight">+₹{((data.total_revenue * (conversionLift / 100)) / 100000).toFixed(1)} L</h3>
-                  <p className="text-[10px] font-medium text-slate-500">If win rate improves by {conversionLift}%</p>
-                </div>
-                <input type="range" min="1" max="25" value={conversionLift} onChange={(e) => setConversionLift(e.target.value)} className="w-full mt-2 accent-indigo-600 relative z-10" />
-              </div>
             </div>
 
             {/* CHARTS ROW */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               
-              {/* RESTORED V2 FEATURE: Pipeline Funnel */}
               <div className="bg-white p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200 flex flex-col h-[300px]">
                 <div className="mb-2"><h3 className="text-sm font-semibold text-slate-900">Pipeline Funnel</h3></div>
                 <div className="flex-grow w-full">

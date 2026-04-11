@@ -98,7 +98,7 @@ def get_metrics(
     if branch_id != "all": fully_filtered_leads = [l for l in fully_filtered_leads if l.get("branch_id") == branch_id]
     if rep_id != "all": fully_filtered_leads = [l for l in fully_filtered_leads if l.get("assigned_to") == rep_id]
     
-    # NEW V4: Rep Capacity Tracking
+    # Rep Capacity Tracking
     rep_perf = {rep['id']: {"revenue": 0, "units": 0, "active_leads": 0} for rep in sales_reps if branch_id == "all" or rep.get("branch_id") == branch_id}
     for l in rep_leaderboard_leads:
         r_id = l.get("assigned_to")
@@ -123,7 +123,22 @@ def get_metrics(
     total_revenue = sum([l.get("deal_value", 0) for l in delivered_leads])
     pending_revenue = sum([l.get("deal_value", 0) for l in pending_deals])
 
-    # NEW V4: Sales Velocity (Average Days to Close)
+    # RESTORED: Top Month Calculation
+    monthly_revenue = {}
+    for l in delivered_leads:
+        date_obj = datetime.fromisoformat(l["last_activity_at"].replace("Z", ""))
+        month_key = date_obj.strftime("%b %Y") 
+        monthly_revenue[month_key] = monthly_revenue.get(month_key, 0) + l.get("deal_value", 0)
+
+    best_month = None
+    if monthly_revenue:
+        best_month_key = max(monthly_revenue, key=monthly_revenue.get)
+        best_month = {
+            "month": best_month_key,
+            "revenue": monthly_revenue[best_month_key]
+        }
+
+    # Sales Velocity (Average Days to Close)
     velocity_days = []
     for l in delivered_leads:
         random.seed(l['id']) # Deterministic fallback
@@ -131,16 +146,14 @@ def get_metrics(
         velocity_days.append(days_to_close)
     avg_velocity = sum(velocity_days) / len(velocity_days) if velocity_days else 0
 
-    # NEW V4: Product Mix & Marketing ROI
+    # Product Mix & Marketing ROI
     product_mix = {}
     marketing_roi = {}
     for l in fully_filtered_leads:
-        # Product Mix
         model = l.get("model_interested", "Unknown")
         if l["status"] == "delivered":
             product_mix[model] = product_mix.get(model, 0) + l.get("deal_value", 0)
         
-        # Marketing Mix
         source = l.get("lead_source", "Unknown")
         if source not in marketing_roi: marketing_roi[source] = {"total": 0, "won": 0}
         marketing_roi[source]["total"] += 1
@@ -181,7 +194,6 @@ def get_metrics(
     active_pipeline = sorted(active_pipeline, key=lambda x: x["days_stagnant"], reverse=True)
     stagnant_leads = [l for l in active_pipeline if l["days_stagnant"] >= bottleneck_days and l["stage"] != "Order Placed"]
 
-    # NEW V4: Capital At Risk
     capital_at_risk = sum([l['value'] for l in stagnant_leads if l["days_stagnant"] >= bottleneck_days])
 
     critical_count = len([l for l in stagnant_leads if l["days_stagnant"] >= 7])
@@ -203,10 +215,11 @@ def get_metrics(
         "total_deliveries": len(delivered_leads),
         "total_leads": len(fully_filtered_leads), 
         "quota_pacing": quota_pacing, 
-        "velocity": int(avg_velocity), # NEW
-        "capital_at_risk": capital_at_risk, # NEW
-        "product_mix": product_mix_chart, # NEW
-        "marketing_roi": marketing_roi_chart, # NEW
+        "best_month": best_month, # RESTORED
+        "velocity": int(avg_velocity), 
+        "capital_at_risk": capital_at_risk, 
+        "product_mix": product_mix_chart, 
+        "marketing_roi": marketing_roi_chart, 
         "smart_summaries": summaries, 
         "stagnant_leads": stagnant_leads,
         "active_pipeline": active_pipeline,
