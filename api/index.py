@@ -89,40 +89,42 @@ def get_metrics(
 
     time_delivered_leads = [l for l in time_filtered_leads if l["status"] == "delivered"]
     
+    # NEW: Added "units" to the branch performance aggregation
     branch_perf = []
     for b in branches:
         b_leads = [l for l in time_delivered_leads if l.get("branch_id") == b["id"]]
-        
         bm_name = "Unassigned"
         for rep in sales_reps:
             if rep.get("branch_id") == b["id"] and rep.get("role") == "branch_manager":
                 bm_name = rep.get("name")
                 break
-
         branch_perf.append({
             "name": b["name"],
             "city": b["city"],
             "manager": bm_name,
-            "revenue": sum([l.get("deal_value", 0) for l in b_leads])
+            "revenue": sum([l.get("deal_value", 0) for l in b_leads]),
+            "units": len(b_leads)
         })
-    top_branches = sorted(branch_perf, key=lambda x: x["revenue"], reverse=True)
+    # We let the frontend handle the sorting now since we have a toggle!
+    top_branches = branch_perf
 
     rep_leaderboard_leads = time_delivered_leads
     if branch_id != "all":
         rep_leaderboard_leads = [l for l in time_delivered_leads if l.get("branch_id") == branch_id]
         
+    # NEW: Added "units" tracking for Sales Reps
     rep_perf = {}
     for rep in sales_reps:
         if branch_id == "all" or rep.get("branch_id") == branch_id:
-            rep_perf[rep['id']] = 0
+            rep_perf[rep['id']] = {"revenue": 0, "units": 0}
             
     for l in rep_leaderboard_leads:
         r_id = l.get("assigned_to")
         if r_id in rep_perf:
-            rep_perf[r_id] += l.get("deal_value", 0)
+            rep_perf[r_id]["revenue"] += l.get("deal_value", 0)
+            rep_perf[r_id]["units"] += 1
             
-    top_reps_list = [{"name": reps_dict.get(r_id, "Unknown"), "revenue": rev} for r_id, rev in rep_perf.items()]
-    top_reps = sorted(top_reps_list, key=lambda x: x["revenue"], reverse=True)
+    top_reps = [{"name": reps_dict.get(r_id, "Unknown"), "revenue": d["revenue"], "units": d["units"]} for r_id, d in rep_perf.items()]
 
     # ==========================================
     # FILTER STAGE 2: BRANCH & REP (For Drill-down KPIs)
@@ -136,15 +138,12 @@ def get_metrics(
         
     delivered_leads = [l for l in fully_filtered_leads if l["status"] == "delivered"]
     lost_leads = [l for l in fully_filtered_leads if l["status"] == "lost"]
-    # NEW: Isolate Pending Deals
     pending_deals = [l for l in fully_filtered_leads if l["status"] == "order_placed"]
     
-    # NEW: Updated Win-Rate Math (Delivered + Order Placed)
     resolved_count = len(delivered_leads) + len(pending_deals) + len(lost_leads)
     conversion_rate = ((len(delivered_leads) + len(pending_deals)) / resolved_count * 100) if resolved_count > 0 else 0
     
     total_revenue = sum([l.get("deal_value", 0) for l in delivered_leads])
-    # NEW: Calculate Pending Revenue
     pending_revenue = sum([l.get("deal_value", 0) for l in pending_deals])
 
     monthly_revenue = {}
@@ -179,7 +178,7 @@ def get_metrics(
         })
         
     active_pipeline = sorted(active_pipeline, key=lambda x: x["days_stagnant"], reverse=True)
-    stagnant_leads = [l for l in active_pipeline if l["days_stagnant"] >= bottleneck_days and l["stage"] != "Order Placed"]
+    stagnant_leads = [l for l in active_pipeline if l["days_stagnant"] >= bottleneck_days and l["stage"] != "Order Placed"][:10]
 
     funnel_stages = ["new", "contacted", "test_drive", "negotiation", "order_placed"]
     pipeline_funnel = [{"stage": s.replace("_", " ").title(), "count": len([l for l in active_leads if l["status"] == s])} for s in funnel_stages]
@@ -188,9 +187,10 @@ def get_metrics(
         "current_date": formatted_current_date,
         "filters": {"branches": branches, "reps": sales_reps},
         "total_revenue": total_revenue,
-        "pending_revenue": pending_revenue, # NEW
+        "pending_revenue": pending_revenue, 
         "conversion_rate": round(conversion_rate, 1),
         "total_deliveries": len(delivered_leads),
+        "total_leads": len(fully_filtered_leads), # NEW: Total pipeline context
         "stagnant_leads": stagnant_leads,
         "active_pipeline": active_pipeline,
         "pipeline_funnel": pipeline_funnel,
