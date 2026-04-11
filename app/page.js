@@ -29,6 +29,9 @@ export default function Dashboard() {
   const [productMixSort, setProductMixSort] = useState('revenue'); 
   const [boardroomMode, setBoardroomMode] = useState(false);
   const [showAI, setShowAI] = useState(false);
+  
+  // RESTORED: Independent state for the Target Pacing Tile
+  const [selectedQuarter, setSelectedQuarter] = useState("");
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -41,6 +44,7 @@ export default function Dashboard() {
   const handleStateReset = () => {
     setBranchFilter("all"); setRepFilter("all"); setTimeFilter("all"); setStartDate(""); setEndDate(""); setBottleneckDays(7); setSearchTerm(""); 
     setSortConfig({ key: 'days_stagnant', direction: 'desc' }); 
+    setSelectedQuarter(""); // RESTORED: Clears quarter selection
   };
 
   const fetchData = useCallback(() => {
@@ -76,7 +80,6 @@ export default function Dashboard() {
   
   let processedTableData = rawTableData ? [...rawTableData] : [];
   
-  // FIXED: Added branch_name to Search Engine
   if (searchTerm) {
     const term = searchTerm.toLowerCase();
     processedTableData = processedTableData.filter(item => 
@@ -143,12 +146,10 @@ export default function Dashboard() {
 
   const PIE_COLORS = ['#1E3A8A', '#F59E0B', '#10B981', '#E11D48', '#8B5CF6', '#14B8A6', '#F97316', '#06B6D4', '#4C1D95', '#84CC16', '#BE123C', '#3B82F6'];
 
-  let targetGap = 0;
-  if (data && data.active_quota) {
-     targetGap = data.active_quota - (data.total_revenue + data.pending_revenue);
-  }
+  // RESTORED: Pacing Quarter Logic
+  const availableQuarters = data?.pacing_history || [];
+  const activePacing = availableQuarters.find(q => q.quarter === selectedQuarter) || availableQuarters[0] || { pacing: 0, revenue: 0, quota: 0, quarter: "N/A" };
 
-  // Splitting Product Mix Legend for optimal layout
   const productMixData = data?.product_mix || [];
   const halfLegend = Math.ceil(productMixData.length / 2);
   const leftLegend = productMixData.slice(0, halfLegend);
@@ -165,7 +166,6 @@ export default function Dashboard() {
               <div className="bg-indigo-600 p-1.5 rounded-lg group-hover:bg-indigo-700 transition-colors"><Car className="text-white w-5 h-5" /></div>
               <h1 className="text-xl font-bold tracking-tight">Dealer<span className="text-indigo-600 group-hover:text-indigo-700 transition-colors">Pulse</span></h1>
             </div>
-            {/* FIXED: cursor-pointer on buttons */}
             <button onClick={handleForceRefresh} className="cursor-pointer hidden sm:flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold px-3 py-1.5 rounded-lg transition-colors border border-indigo-200">
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Sync Data
             </button>
@@ -273,23 +273,32 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-7 gap-4">
               <StatCard title="Total Revenue" value={formatCurrency(data.total_revenue)} subtitle={`+ ${formatCurrency(data.pending_revenue)} Pending`} icon={<IndianRupee className="text-emerald-600 w-5 h-5" />} tooltip="Recognized revenue from delivered vehicles. Pending revenue represents placed orders awaiting logistics."/>
               
+              {/* RESTORED: INDEPENDENT TARGET PACING TILE */}
               <div className="bg-white p-4 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.05)] border border-slate-200 flex flex-col justify-center relative">
                  <div className="flex items-center gap-1 mb-2">
-                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Target Pacing</p>
-                   <TooltipIcon text="Percentage of the quarterly target achieved using Booked + Pending revenue." />
+                   <select 
+                      className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider bg-transparent outline-none cursor-pointer hover:text-indigo-800 transition-colors"
+                      value={activePacing.quarter}
+                      onChange={(e) => setSelectedQuarter(e.target.value)}
+                   >
+                      {availableQuarters.map(q => (
+                          <option key={q.quarter} value={q.quarter}>{q.quarter} Target</option>
+                      ))}
+                   </select>
+                   <TooltipIcon text="Percentage of the quarterly target achieved. This operates independently of the global time filter above." />
                  </div>
                  <div className="flex items-center gap-3">
                     <div className="relative w-12 h-12 shrink-0 flex items-center justify-center">
                        <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
                           <circle cx="18" cy="18" r="16" fill="none" className="stroke-slate-100" strokeWidth="4" />
-                          <circle cx="18" cy="18" r="16" fill="none" className="stroke-indigo-600" strokeWidth="4" strokeDasharray="100" strokeDashoffset={100 - data.quota_pacing} strokeLinecap="round" />
+                          <circle cx="18" cy="18" r="16" fill="none" className="stroke-indigo-600" strokeWidth="4" strokeDasharray="100" strokeDashoffset={100 - activePacing.pacing} strokeLinecap="round" />
                        </svg>
-                       <span className="absolute text-[10px] font-bold text-slate-800">{data.quota_pacing}%</span>
+                       <span className="absolute text-[10px] font-bold text-slate-800">{activePacing.pacing}%</span>
                     </div>
                     <div>
-                       <h3 className="text-sm font-bold text-slate-900 tracking-tight">Quarterly Goal</h3>
-                       {targetGap > 0 ? (
-                         <p className="text-[10px] font-medium text-rose-500 mt-0.5">{formatCurrency(targetGap)} needed</p>
+                       <h3 className="text-sm font-bold text-slate-900 tracking-tight">{formatCurrency(activePacing.quota)} Goal</h3>
+                       {activePacing.quota - activePacing.revenue > 0 ? (
+                         <p className="text-[10px] font-medium text-rose-500 mt-0.5">{formatCurrency(activePacing.quota - activePacing.revenue)} needed</p>
                        ) : (
                          <p className="text-[10px] font-medium text-emerald-500 mt-0.5">Target Achieved 🎉</p>
                        )}
@@ -305,7 +314,6 @@ export default function Dashboard() {
               <StatCard title="Bottlenecks" value={data.stagnant_leads?.length || 0} subtitle={`${formatCurrency(data.capital_at_risk)} at Risk`} icon={<AlertTriangle className="text-rose-600 w-5 h-5" />} alert tooltip={`Active deals that have had no logged activity for over ${bottleneckDays} days. The Rupee value shows the capital trapped in these deals.`} />
             </div>
 
-            {/* CHARTS ROW */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               
               <div className="bg-white p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200 flex flex-col h-[300px]">
@@ -325,21 +333,18 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* FIXED: Maximized Layout for Product Mix */}
               <div className="bg-white p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200 flex flex-col h-[300px]">
                 <div className="mb-2 flex items-center justify-between">
                   <div className="flex items-center gap-1">
                     <h3 className="text-sm font-semibold text-slate-900">Product Mix</h3>
                     <TooltipIcon text="Breakdown of delivered vehicles by model, togglable by revenue or units sold." />
                   </div>
-                  {/* FIXED: Larger Toggle Button Size */}
                   <div className="flex bg-slate-100 rounded-lg p-0.5 border border-slate-200 ml-auto cursor-pointer">
                     <button onClick={() => setProductMixSort('revenue')} className={`text-[10px] font-bold px-2 py-1 rounded-md transition-colors cursor-pointer ${productMixSort === 'revenue' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500'}`}>💰 Rev</button>
                     <button onClick={() => setProductMixSort('units')} className={`text-[10px] font-bold px-2 py-1 rounded-md transition-colors cursor-pointer ${productMixSort === 'units' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500'}`}>🚗 Units</button>
                   </div>
                 </div>
                 
-                {/* Maximized Layout with Left/Right Columns */}
                 <div className="flex-grow w-full relative flex items-center justify-between mt-2">
                   <div className="w-1/4 flex flex-col justify-center gap-2 max-h-full overflow-y-auto pr-1">
                     {leftLegend.map((entry, index) => (
@@ -353,7 +358,6 @@ export default function Dashboard() {
                   <div className="w-2/4 h-full relative">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
-                        {/* Larger Inner/Outer Radius */}
                         <Pie data={data.product_mix} cx="50%" cy="50%" innerRadius="55%" outerRadius="80%" paddingAngle={2} dataKey={productMixSort} stroke="none">
                           {data.product_mix.map((entry, index) => <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />)}
                         </Pie>
