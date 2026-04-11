@@ -111,3 +111,4 @@ Revenue numbers lack meaning without operational targets. I introduced quota tra
 ### D. Server-Side Aggregation (The "Dumb" Client)
 To guarantee the UI remains highly performant as data scales, I executed a strict separation of concerns:
 * **Heavy Python, Light React:** Shifted 100% of the advanced computation (Health Scoring, NBA generation, Quota Pacing math, Summary generation) to the FastAPI layer. The React frontend now operates as a high-speed "dumb" presentation layer that simply receives numbers and paints them to the DOM, ensuring fluid performance even on lower-end devices.
+* **Global Loading State:** Replaced clunky, screen-blocking loading spinners with a sleek, global progress bar attached to the bottom of the sticky navigation, matching top-tier enterprise platforms.
