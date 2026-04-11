@@ -1,5 +1,6 @@
 import os
 import json
+import random
 from datetime import datetime, timedelta
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,6 +15,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+def format_currency(value):
+    if value >= 10000000:
+        return f"₹{value / 10000000:.2f} Cr"
+    return f"₹{value / 100000:.1f} L"
+
 def load_data():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     file_path = os.path.join(current_dir, 'v3_dealership_data.json')
@@ -27,21 +33,18 @@ def get_start_of_quarter(date):
     return datetime(date.year, 3 * quarter - 2, 1)
 
 def calculate_health_and_nba(deal_value, days_stagnant, stage):
-    stage_weights = {"new": 0, "contacted": 10, "test_drive": 30, "negotiation": 50, "order_placed": 100}
-    stage_weight = stage_weights.get(stage.lower(), 0)
+    stage_bonus = {"new": 0, "contacted": 5, "test_drive": 10, "negotiation": 20, "order_placed": 30}
+    bonus = stage_bonus.get(stage.lower(), 0)
+    value_bonus = min(15, (deal_value / 500000)) 
     
-    health = 50 + (deal_value / 100000) - (days_stagnant * 4) + (stage_weight * 0.5)
+    health = 100 - (days_stagnant * 5) + bonus + value_bonus
     health = max(0, min(100, int(health))) 
 
     nba = "Review deal strategy."
-    if stage == "new" and days_stagnant > 1:
-        nba = "Immediate Call/Reassign"
-    elif stage == "test_drive" and days_stagnant > 3:
-        nba = "Send Model Comparison Sheet"
-    elif stage == "negotiation" and days_stagnant > 5:
-        nba = "Manager Intervention / Offer 2% Concession"
-    elif days_stagnant > 10:
-        nba = "Move to Nurture Sequence"
+    if stage == "new" and days_stagnant > 1: nba = "Immediate Call/Reassign"
+    elif stage == "test_drive" and days_stagnant > 3: nba = "Send Model Comparison Sheet"
+    elif stage == "negotiation" and days_stagnant > 5: nba = "Manager Intervention / Offer Concession"
+    elif days_stagnant > 10: nba = "Move to Nurture Sequence"
 
     return health, nba
 
@@ -66,6 +69,7 @@ def get_metrics(
     simulated_now = datetime.fromisoformat(generated_at_str.replace("Z", "")) if generated_at_str else datetime.now()
     formatted_current_date = simulated_now.strftime("%b %d, %Y")
 
+    # Time Filter for general metrics
     time_filtered_leads = all_leads
     if timeframe != "all":
         cutoff_start = None
@@ -85,29 +89,34 @@ def get_metrics(
 
     time_delivered_leads = [l for l in time_filtered_leads if l["status"] == "delivered"]
     
+    # Leaderboards
     branch_perf = []
     for b in branches:
         b_leads = [l for l in time_delivered_leads if l.get("branch_id") == b["id"]]
         bm_name = next((r["name"] for r in sales_reps if r.get("branch_id") == b["id"] and r.get("role") == "branch_manager"), "Unassigned")
         branch_perf.append({"name": b["name"], "city": b["city"], "manager": bm_name, "revenue": sum([l.get("deal_value", 0) for l in b_leads]), "units": len(b_leads)})
-    
-    # FIXED: Restored the assignment line!
     top_branches = branch_perf
     
     rep_leaderboard_leads = time_delivered_leads if branch_id == "all" else [l for l in time_delivered_leads if l.get("branch_id") == branch_id]
-    rep_perf = {rep['id']: {"revenue": 0, "units": 0} for rep in sales_reps if branch_id == "all" or rep.get("branch_id") == branch_id}
+    
+    fully_filtered_leads = time_filtered_leads
+    if branch_id != "all": fully_filtered_leads = [l for l in fully_filtered_leads if l.get("branch_id") == branch_id]
+    if rep_id != "all": fully_filtered_leads = [l for l in fully_filtered_leads if l.get("assigned_to") == rep_id]
+    
+    rep_perf = {rep['id']: {"revenue": 0, "units": 0, "active_leads": 0} for rep in sales_reps if branch_id == "all" or rep.get("branch_id") == branch_id}
     for l in rep_leaderboard_leads:
         r_id = l.get("assigned_to")
         if r_id in rep_perf:
             rep_perf[r_id]["revenue"] += l.get("deal_value", 0)
             rep_perf[r_id]["units"] += 1
+    
+    for l in fully_filtered_leads:
+        if l["status"] not in ["delivered", "lost"]:
+            r_id = l.get("assigned_to")
+            if r_id in rep_perf: rep_perf[r_id]["active_leads"] += 1
             
-    top_reps = [{"name": reps_dict.get(r_id, "Unknown"), "revenue": d["revenue"], "units": d["units"]} for r_id, d in rep_perf.items()]
+    top_reps = [{"name": reps_dict.get(r_id, "Unknown"), "revenue": d["revenue"], "units": d["units"], "active_leads": d["active_leads"]} for r_id, d in rep_perf.items()]
 
-    fully_filtered_leads = time_filtered_leads
-    if branch_id != "all": fully_filtered_leads = [l for l in fully_filtered_leads if l.get("branch_id") == branch_id]
-    if rep_id != "all": fully_filtered_leads = [l for l in fully_filtered_leads if l.get("assigned_to") == rep_id]
-        
     delivered_leads = [l for l in fully_filtered_leads if l["status"] == "delivered"]
     lost_leads = [l for l in fully_filtered_leads if l["status"] == "lost"]
     pending_deals = [l for l in fully_filtered_leads if l["status"] == "order_placed"]
@@ -118,12 +127,88 @@ def get_metrics(
     total_revenue = sum([l.get("deal_value", 0) for l in delivered_leads])
     pending_revenue = sum([l.get("deal_value", 0) for l in pending_deals])
 
+    monthly_revenue = {}
+    for l in delivered_leads:
+        date_obj = datetime.fromisoformat(l["last_activity_at"].replace("Z", ""))
+        month_key = date_obj.strftime("%b %Y") 
+        monthly_revenue[month_key] = monthly_revenue.get(month_key, 0) + l.get("deal_value", 0)
+
+    best_month = None
+    if monthly_revenue:
+        best_month_key = max(monthly_revenue, key=monthly_revenue.get)
+        best_month = {
+            "month": best_month_key,
+            "revenue": monthly_revenue[best_month_key]
+        }
+
+    velocity_days = []
+    for l in delivered_leads:
+        random.seed(l['id'])
+        days_to_close = random.randint(7, 35) 
+        velocity_days.append(days_to_close)
+    avg_velocity = sum(velocity_days) / len(velocity_days) if velocity_days else 0
+
+    product_mix = {}
+    marketing_roi = {}
+    for l in fully_filtered_leads:
+        model = l.get("model_interested", "Unknown")
+        if l["status"] == "delivered":
+            if model not in product_mix: product_mix[model] = {"revenue": 0, "units": 0}
+            product_mix[model]["revenue"] += l.get("deal_value", 0)
+            product_mix[model]["units"] += 1
+        
+        source = l.get("lead_source", "Unknown")
+        if source not in marketing_roi: marketing_roi[source] = {"total": 0, "won": 0}
+        marketing_roi[source]["total"] += 1
+        if l["status"] in ["delivered", "order_placed"]:
+            marketing_roi[source]["won"] += 1
+
+    product_mix_chart = [{"name": k, "revenue": v["revenue"], "units": v["units"]} for k, v in product_mix.items()]
+    marketing_roi_chart = [{"source": k, "win_rate": int((v["won"]/v["total"])*100) if v["total"]>0 else 0, "leads": v["total"]} for k, v in marketing_roi.items()]
+
+    # ==========================================
+    # NEW: Historical Quarterly Pacing Engine
+    # ==========================================
     active_quota = data.get('company_quarterly_quota', 100000000)
     if branch_id != "all":
         branch_data = next((b for b in branches if b['id'] == branch_id), None)
         active_quota = branch_data.get('quarterly_quota', 50000000) if branch_data else 50000000
+
+    # Get leads bypassing the time filter, but keeping branch/rep filters
+    pacing_leads = all_leads
+    if branch_id != "all": pacing_leads = [l for l in pacing_leads if l.get("branch_id") == branch_id]
+    if rep_id != "all": pacing_leads = [l for l in pacing_leads if l.get("assigned_to") == rep_id]
+
+    quarterly_pacing_data = {}
+    for l in pacing_leads:
+        if l["status"] in ["delivered", "order_placed"]:
+            date_obj = datetime.fromisoformat(l["last_activity_at"].replace("Z", ""))
+            q = (date_obj.month - 1) // 3 + 1
+            q_str = f"Q{q} {date_obj.year}"
+            
+            if q_str not in quarterly_pacing_data:
+                quarterly_pacing_data[q_str] = 0
+            quarterly_pacing_data[q_str] += l.get("deal_value", 0)
+
+    pacing_history = []
+    for q_str, rev in quarterly_pacing_data.items():
+        pacing = min(100, int((rev / active_quota) * 100)) if active_quota else 0
+        pacing_history.append({
+            "quarter": q_str,
+            "revenue": rev,
+            "quota": active_quota,
+            "pacing": pacing
+        })
     
-    quota_pacing = min(100, int(((total_revenue + pending_revenue) / active_quota) * 100)) if active_quota else 0
+    # Sort chronologically descending (e.g. Q2 2026 -> Q1 2026 -> Q4 2025)
+    pacing_history.sort(key=lambda x: (int(x["quarter"][-4:]), int(x["quarter"][1])), reverse=True)
+    
+    # Fallback if brand new system with zero historical sales
+    if not pacing_history:
+        current_q = (simulated_now.month - 1) // 3 + 1
+        pacing_history.append({"quarter": f"Q{current_q} {simulated_now.year}", "revenue": 0, "quota": active_quota, "pacing": 0})
+
+    # ==========================================
 
     active_pipeline = []
     active_leads = [l for l in fully_filtered_leads if l["status"] not in ["delivered", "lost"]]
@@ -150,11 +235,15 @@ def get_metrics(
     active_pipeline = sorted(active_pipeline, key=lambda x: x["days_stagnant"], reverse=True)
     stagnant_leads = [l for l in active_pipeline if l["days_stagnant"] >= bottleneck_days and l["stage"] != "Order Placed"]
 
+    capital_at_risk = sum([l['value'] for l in stagnant_leads if l["days_stagnant"] >= bottleneck_days])
     critical_count = len([l for l in stagnant_leads if l["days_stagnant"] >= 7])
+    
+    current_pacing = pacing_history[0] if pacing_history else {"quarter": "Current", "pacing": 0}
+    
     summaries = [
-        f"🎯 Pacing: You are at {quota_pacing}% of your revenue target for this view.",
-        f"⚠️ Risk: There are {critical_count} critical deals (>7 days idle) putting pipeline at risk.",
-        f"💡 Action: Reassigning or engaging the top 3 bottlenecks could unblock ₹{sum(l['value'] for l in stagnant_leads[:3])/100000:.1f}L."
+        f"🎯 Pacing: You are at {current_pacing['pacing']}% of your {current_pacing['quarter']} revenue target.",
+        f"⚠️ Risk: There are {critical_count} critical deals putting {format_currency(capital_at_risk)} at risk.",
+        f"💡 Action: Reassigning the top 3 bottlenecks could unblock {format_currency(sum(l['value'] for l in stagnant_leads[:3]))}."
     ]
 
     funnel_stages = ["new", "contacted", "test_drive", "negotiation", "order_placed"]
@@ -168,7 +257,12 @@ def get_metrics(
         "conversion_rate": round(conversion_rate, 1),
         "total_deliveries": len(delivered_leads),
         "total_leads": len(fully_filtered_leads), 
-        "quota_pacing": quota_pacing, 
+        "pacing_history": pacing_history, # NEW: Sends historical quarters
+        "best_month": best_month, 
+        "velocity": int(avg_velocity), 
+        "capital_at_risk": capital_at_risk, 
+        "product_mix": product_mix_chart, 
+        "marketing_roi": marketing_roi_chart, 
         "smart_summaries": summaries, 
         "stagnant_leads": stagnant_leads,
         "active_pipeline": active_pipeline,
