@@ -3,12 +3,20 @@ import { useEffect, useState, useCallback } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
 import { IndianRupee, TrendingUp, Car, AlertTriangle, Clock, Filter, Calendar, Download, Zap, Users, Trophy, Medal, MapPin, List, User, Info, Search, ChevronUp, ChevronDown, X, RefreshCw, Sparkles, Target, Timer, Eye, EyeOff } from 'lucide-react';
 
+// NEW: Global Dynamic Currency Formatter
+const formatCurrency = (value) => {
+  if (value == null) return "₹0 L";
+  if (value >= 10000000) {
+    return `₹${(value / 10000000).toFixed(2)} Cr`;
+  }
+  return `₹${(value / 100000).toFixed(1)} L`;
+};
+
 export default function Dashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // States
   const [branchFilter, setBranchFilter] = useState("all");
   const [repFilter, setRepFilter] = useState("all");
   const [timeFilter, setTimeFilter] = useState("all");
@@ -17,14 +25,16 @@ export default function Dashboard() {
   const [bottleneckDays, setBottleneckDays] = useState(7); 
   const [conversionLift, setConversionLift] = useState(5); 
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortConfig, setSortConfig] = useState({ key: 'health_score', direction: 'asc' });
+  
+  // FIXED: Initial state matches the backend so the first click reverses to 'asc'
+  const [sortConfig, setSortConfig] = useState({ key: 'days_stagnant', direction: 'desc' });
+  
   const [repSort, setRepSort] = useState('revenue');
   const [branchSort, setBranchSort] = useState('revenue'); 
-  const [productMixSort, setProductMixSort] = useState('revenue'); // NEW: Product Mix Toggle
+  const [productMixSort, setProductMixSort] = useState('revenue'); 
   const [boardroomMode, setBoardroomMode] = useState(false);
   const [showAI, setShowAI] = useState(false);
 
-  // NEW: Listen for ESC key to exit boardroom mode
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') setBoardroomMode(false);
@@ -34,7 +44,8 @@ export default function Dashboard() {
   }, []);
 
   const handleStateReset = () => {
-    setBranchFilter("all"); setRepFilter("all"); setTimeFilter("all"); setStartDate(""); setEndDate(""); setBottleneckDays(7); setSearchTerm(""); setSortConfig({ key: 'health_score', direction: 'asc' });
+    setBranchFilter("all"); setRepFilter("all"); setTimeFilter("all"); setStartDate(""); setEndDate(""); setBottleneckDays(7); setSearchTerm(""); 
+    setSortConfig({ key: 'days_stagnant', direction: 'desc' }); // FIXED HERE TOO
   };
 
   const fetchData = useCallback(() => {
@@ -49,7 +60,7 @@ export default function Dashboard() {
         setData(json); 
         setLoading(false); 
         setError(null);
-        setShowAI(false); // Resets AI context on data load
+        setShowAI(false); 
       }).catch(err => {
         setError(err.message); setLoading(false);
       });
@@ -76,7 +87,6 @@ export default function Dashboard() {
     );
   }
 
-  // BULLETPROOF SORTING
   if (sortConfig.key) {
     processedTableData.sort((a, b) => {
       let aVal = a[sortConfig.key];
@@ -130,7 +140,6 @@ export default function Dashboard() {
   const sortedReps = [...(data?.top_reps || [])].map(r => ({...r, avg_deal: r.units > 0 ? r.revenue / r.units : 0})).sort((a, b) => b[repSort] - a[repSort]);
   const maxRepMetric = sortedReps.length > 0 ? sortedReps[0][repSort] : 1;
 
-  // 12 Distinct Colors
   const PIE_COLORS = ['#4f46e5', '#0ea5e9', '#10b981', '#f59e0b', '#f43f5e', '#8b5cf6', '#14b8a6', '#f97316', '#a855f7', '#06b6d4', '#ef4444', '#3b82f6'];
 
   let targetGap = 0;
@@ -201,7 +210,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* RESTORED: Full Time Filter */}
         {!boardroomMode && (
           <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm animate-in fade-in">
             <div className="shrink-0">
@@ -257,9 +265,8 @@ export default function Dashboard() {
           <>
             {/* KPI STRIP */}
             <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-7 gap-4">
-              <StatCard title="Total Revenue" value={`₹${(data.total_revenue / 10000000).toFixed(2)} Cr`} subtitle={`+ ₹${(data.pending_revenue / 100000).toFixed(1)} L Pending`} icon={<IndianRupee className="text-emerald-600 w-5 h-5" />} tooltip="Recognized revenue from delivered vehicles. Pending revenue represents placed orders awaiting logistics."/>
+              <StatCard title="Total Revenue" value={formatCurrency(data.total_revenue)} subtitle={`+ ${formatCurrency(data.pending_revenue)} Pending`} icon={<IndianRupee className="text-emerald-600 w-5 h-5" />} tooltip="Recognized revenue from delivered vehicles. Pending revenue represents placed orders awaiting logistics."/>
               
-              {/* Target Pacing w/ Target Mention */}
               <div className="bg-white p-4 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.05)] border border-slate-200 flex flex-col justify-center relative">
                  <div className="flex items-center gap-1 mb-2">
                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Target Pacing</p>
@@ -274,9 +281,9 @@ export default function Dashboard() {
                        <span className="absolute text-[10px] font-bold text-slate-800">{data.quota_pacing}%</span>
                     </div>
                     <div>
-                       <h3 className="text-sm font-bold text-slate-900 tracking-tight">₹{(data.active_quota / 10000000).toFixed(2)} Cr Goal</h3>
+                       <h3 className="text-sm font-bold text-slate-900 tracking-tight">{formatCurrency(data.active_quota)} Goal</h3>
                        {targetGap > 0 ? (
-                         <p className="text-[10px] font-medium text-rose-500 mt-0.5">₹{(targetGap / 100000).toFixed(1)} L needed</p>
+                         <p className="text-[10px] font-medium text-rose-500 mt-0.5">{formatCurrency(targetGap)} needed</p>
                        ) : (
                          <p className="text-[10px] font-medium text-emerald-500 mt-0.5">Target Achieved 🎉</p>
                        )}
@@ -288,10 +295,8 @@ export default function Dashboard() {
               <StatCard title="Deliveries" value={data.total_deliveries} subtitle={`Out of ${data.total_leads} Leads`} icon={<Car className="text-blue-600 w-5 h-5" />} tooltip="The total number of closed-won deliveries compared to the raw number of leads generated in this timeframe." />
               <StatCard title="Win Rate" value={`${data.conversion_rate}%`} subtitle="Delivered + Placed" icon={<TrendingUp className="text-indigo-600 w-5 h-5" />} tooltip="Calculated as: (Delivered + Order Placed) / (Delivered + Order Placed + Lost)" />
               <StatCard title="Sales Velocity" value={`${data.velocity} Days`} subtitle="Average Time to Close" icon={<Timer className="text-cyan-600 w-5 h-5" />} tooltip="The average number of days it takes for a lead to move from creation to final delivery." />
-              <StatCard title="Top Month" value={data.best_month?.month || 'N/A'} subtitle={data.best_month ? `₹${(data.best_month.revenue / 10000000).toFixed(2)} Cr` : ''} icon={<Calendar className="text-purple-600 w-5 h-5" />} tooltip="The single highest-grossing month in the selected timeframe." />
-
-              {/* REMOVED: Redundant Dropdown */}
-              <StatCard title="Bottlenecks" value={data.stagnant_leads?.length || 0} subtitle={`₹${(data.capital_at_risk / 100000).toFixed(1)} L at Risk`} icon={<AlertTriangle className="text-rose-600 w-5 h-5" />} alert tooltip={`Active deals that have had no logged activity for over ${bottleneckDays} days. The Rupee value shows the capital trapped in these deals.`} />
+              <StatCard title="Top Month" value={data.best_month?.month || 'N/A'} subtitle={data.best_month ? formatCurrency(data.best_month.revenue) : ''} icon={<Calendar className="text-purple-600 w-5 h-5" />} tooltip="The single highest-grossing month in the selected timeframe." />
+              <StatCard title="Bottlenecks" value={data.stagnant_leads?.length || 0} subtitle={`${formatCurrency(data.capital_at_risk)} at Risk`} icon={<AlertTriangle className="text-rose-600 w-5 h-5" />} alert tooltip={`Active deals that have had no logged activity for over ${bottleneckDays} days. The Rupee value shows the capital trapped in these deals.`} />
             </div>
 
             {/* CHARTS ROW */}
@@ -314,7 +319,6 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* UPGRADED: Product Mix w/ Revenue & Unit Toggles */}
               <div className="bg-white p-5 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)] border border-slate-200 flex flex-col h-[300px]">
                 <div className="mb-2 flex items-center justify-between">
                   <div className="flex items-center gap-1">
@@ -332,7 +336,7 @@ export default function Dashboard() {
                       <Pie data={data.product_mix} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={2} dataKey={productMixSort} stroke="none">
                         {data.product_mix.map((entry, index) => <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />)}
                       </Pie>
-                      <RechartsTooltip formatter={(value) => productMixSort === 'revenue' ? `₹${(value/100000).toFixed(1)}L` : `${value} Units`} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '12px' }}/>
+                      <RechartsTooltip formatter={(value) => productMixSort === 'revenue' ? formatCurrency(value) : `${value} Units`} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '12px' }}/>
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
@@ -387,7 +391,6 @@ export default function Dashboard() {
                     </span>
                   )}
 
-                  {/* SOLE SOURCE OF TRUTH: Bottleneck Filter */}
                   <select className="bg-white text-slate-700 hover:bg-slate-50 transition-colors text-xs font-semibold py-1.5 px-2 rounded-lg outline-none cursor-pointer border border-slate-200 shadow-sm" value={bottleneckDays} onChange={(e) => setBottleneckDays(Number(e.target.value))}>
                     <option value={1}>🟡 1+ Days Idle</option>
                     <option value={3}>🟠 3+ Days Idle</option>
@@ -423,7 +426,7 @@ export default function Dashboard() {
                       processedTableData.map((lead) => (
                         <tr key={lead.id} className={`transition-colors group hover:bg-slate-50 border-l-4 ${lead.health_score < 40 ? 'border-l-rose-500' : lead.health_score < 70 ? 'border-l-amber-400' : 'border-l-emerald-400'}`}>
                           <td className="px-6 py-3 font-medium text-slate-900">{lead.customer} <div className="text-[10px] text-slate-400 font-normal">{lead.model} • {lead.stage}</div></td>
-                          <td className="px-6 py-3 font-semibold text-slate-700">₹{(lead.value / 100000).toFixed(1)}L</td>
+                          <td className="px-6 py-3 font-semibold text-slate-700">{formatCurrency(lead.value)}</td>
                           
                           <td className="px-6 py-3">
                             <div className="flex items-center gap-2">
@@ -479,14 +482,14 @@ export default function Dashboard() {
                               </div>
 
                               <div className="text-[9px] text-slate-500 font-medium mt-0.5 opacity-70 group-hover:opacity-100 transition-opacity">
-                                {branchSort === 'avg_deal' ? `${branch.units} Cars` : `Avg Deal: ₹${(branch.avg_deal / 100000).toFixed(1)}L`}
+                                {branchSort === 'avg_deal' ? `${branch.units} Cars` : `Avg Deal: ${formatCurrency(branch.avg_deal)}`}
                               </div>
                             </div>
                           </div>
                           <div className="text-right text-xs">
-                            {branchSort === 'revenue' && <span className="font-semibold text-amber-700 block">₹{(branch.revenue / 10000000).toFixed(2)} Cr</span>}
+                            {branchSort === 'revenue' && <span className="font-semibold text-amber-700 block">{formatCurrency(branch.revenue)}</span>}
                             {branchSort === 'units' && <span className="font-semibold text-amber-700 block">{branch.units} Cars</span>}
-                            {branchSort === 'avg_deal' && <span className="font-semibold text-amber-700 block">₹{(branch.avg_deal / 100000).toFixed(1)} L</span>}
+                            {branchSort === 'avg_deal' && <span className="font-semibold text-amber-700 block">{formatCurrency(branch.avg_deal)}</span>}
                           </div>
                         </div>
                       )
@@ -523,15 +526,15 @@ export default function Dashboard() {
                             <div>
                               <span className="text-xs font-medium text-slate-900 block">{rep.name}</span>
                               <div className="text-[9px] text-slate-500 font-medium mt-0.5 opacity-70 flex flex-wrap gap-2 transition-opacity group-hover:opacity-100">
-                                <span>{repSort === 'avg_deal' ? `${rep.units} Cars` : `Avg: ₹${(rep.avg_deal / 100000).toFixed(1)}L`}</span>
+                                <span>{repSort === 'avg_deal' ? `${rep.units} Cars` : `Avg: ${formatCurrency(rep.avg_deal)}`}</span>
                                 <span className={rep.active_leads > 15 ? 'text-rose-600 font-bold' : ''}>• {rep.active_leads} Active Deals</span>
                               </div>
                             </div>
                           </div>
                           <div className="text-right text-xs">
-                            {repSort === 'revenue' && <span className="font-semibold text-indigo-600">₹{(rep.revenue / 100000).toFixed(1)} L</span>}
+                            {repSort === 'revenue' && <span className="font-semibold text-indigo-600">{formatCurrency(rep.revenue)}</span>}
                             {repSort === 'units' && <span className="font-semibold text-indigo-600">{rep.units} Cars</span>}
-                            {repSort === 'avg_deal' && <span className="font-semibold text-indigo-600">₹{(rep.avg_deal / 100000).toFixed(1)} L</span>}
+                            {repSort === 'avg_deal' && <span className="font-semibold text-indigo-600">{formatCurrency(rep.avg_deal)}</span>}
                           </div>
                         </div>
                       )

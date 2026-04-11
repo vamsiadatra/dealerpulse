@@ -27,6 +27,11 @@ def get_start_of_quarter(date):
     quarter = (date.month - 1) // 3 + 1
     return datetime(date.year, 3 * quarter - 2, 1)
 
+def format_currency(value):
+    if value >= 10000000:
+        return f"₹{value / 10000000:.2f} Cr"
+    return f"₹{value / 100000:.1f} L"
+
 def calculate_health_and_nba(deal_value, days_stagnant, stage):
     stage_weights = {"new": 0, "contacted": 10, "test_drive": 30, "negotiation": 50, "order_placed": 100}
     stage_weight = stage_weights.get(stage.lower(), 0)
@@ -195,10 +200,15 @@ def get_metrics(
     capital_at_risk = sum([l['value'] for l in stagnant_leads if l["days_stagnant"] >= bottleneck_days])
     critical_count = len([l for l in stagnant_leads if l["days_stagnant"] >= 7])
     
+    # summaries = [
+    #     f"🎯 Pacing: You are at {quota_pacing}% of your revenue target for this view.",
+    #     f"⚠️ Risk: There are {critical_count} critical deals putting ₹{capital_at_risk/10000000:.2f} Cr at risk.",
+    #     f"💡 Action: Reassigning the top 3 bottlenecks could unblock ₹{sum(l['value'] for l in stagnant_leads[:3])/100000:.1f}L."
+    # ]
     summaries = [
         f"🎯 Pacing: You are at {quota_pacing}% of your revenue target for this view.",
-        f"⚠️ Risk: There are {critical_count} critical deals putting ₹{capital_at_risk/10000000:.2f} Cr at risk.",
-        f"💡 Action: Reassigning the top 3 bottlenecks could unblock ₹{sum(l['value'] for l in stagnant_leads[:3])/100000:.1f}L."
+        f"⚠️ Risk: There are {critical_count} critical deals putting {format_currency(capital_at_risk)} at risk.",
+        f"💡 Action: Reassigning the top 3 bottlenecks could unblock {format_currency(sum(l['value'] for l in stagnant_leads[:3]))}."
     ]
 
     funnel_stages = ["new", "contacted", "test_drive", "negotiation", "order_placed"]
