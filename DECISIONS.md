@@ -64,3 +64,50 @@ Different roles require entirely different views of the same data. I rebuilt the
 ### D. Enterprise Fit & Finish
 * **Widescreen Fluidity:** Expanded the layout max-width to `1600px` to fully utilize horizontal real estate on large executive desktop monitors, perfectly aligning the 6-column KPI grid.
 * **Contextual Tooltips:** Embedded custom hover tooltips on complex metrics (e.g., the interactive What-If forecast slider) to eliminate ambiguity while keeping the primary UI uncluttered.
+
+## 8. Version 2.1: Interactive Triage & Advanced Analytics
+
+After establishing a solid data foundation in v2, I pushed a v2.1 update to transform the dashboard from a static report into a fully interactive operational workspace, aligning the math closer to real-world enterprise sales mechanics.
+
+### A. Refined Financial Math & Pipeline Context
+* **Booked vs. Pending Revenue:** Split the revenue reporting. The primary KPI tracks *Recognized Revenue* (Delivered), while a secondary metric tracks *Pending Revenue* (Order Placed) so reps receive visible credit for secured pipeline.
+* **True Sales Win-Rate:** Adjusted the conversion math to `(Delivered + Placed) / (Delivered + Placed + Lost)`. In sales, a signed order is a "win," even if logistics hasn't delivered the car yet. 
+* **Top-of-Funnel Visibility:** Upgraded the "Deliveries" card to include the raw top-of-funnel pipeline volume (e.g., "Out of 510 Total Leads") to give the conversion metrics immediate scale.
+
+### B. The Interactive Bottleneck Workspace
+I upgraded the static bottlenecks table into a dynamic triage engine for Branch Managers:
+* **Dynamic Thresholds:** Implemented an adjustable threshold dropdown (1, 3, 7, 14 days) using native emoji indicators (🟡, 🟠, 🔴, ⚪) so managers can strictly define what constitutes an actionable delay.
+* **Severity Color-Coding:** Engineered a dynamic row-styling system that applies strict color hierarchies (Yellow -> Orange -> Red -> Grey) based on idle days, allowing for instant visual triage.
+* **Omni-Search & Multi-Sort:** Added a live, debounced search bar (querying customers, stages, cars, and reps). I also converted the table headers (Customer, Est. Revenue, Stage, Rep, Time Idle) into interactive toggles for multi-directional sorting.
+
+### C. Multi-Metric Leaderboards & Visual Gaps
+* **3-Way Ranking Toggles:** Rebuilt both the Dealership and Sales Rep leaderboards to include a toggle switch. Managers can now instantly resort the rankings by **Total Revenue**, **Units Sold**, or **Average Deal Size**, exposing who is moving volume versus who is selling high-margin inventory.
+* **Visual Progress Bars:** Injected dynamic, horizontal background fill-bars into the leaderboard rows. This visually exposes the actual performance gap between the #1 rep and the rest of the pack, rather than just presenting them as a flat list.
+
+### D. Enterprise State Management
+* **Two-Tier Refresh System:** Engineered a "Soft Reset" (clicking the logo instantly wipes local filter and sort states) and a "Hard Sync" (a dedicated button in the navbar to bypass the cache and re-fetch raw database metrics).
+* **Global Loading State:** Replaced clunky, screen-blocking loading spinners with a sleek, global progress bar attached to the bottom of the sticky navigation, matching top-tier enterprise platforms.
+
+## 9. Version 3.0: The Prescriptive Command Center & Heuristic AI
+
+The objective for v3 was to graduate the dashboard from **Descriptive** analytics (what happened) to **Prescriptive** analytics (what we should do about it), elevating the tool for CEO and Executive-level decision-making. Crucially, this had to be achieved while maintaining strict adherence to a lightweight, lightning-fast architecture.
+
+### A. Data Synthesis & Enterprise Enrichment
+To build predictive models, the system required data volume and context that the original mock dataset lacked. Instead of introducing a heavy relational database, I built a build-time synthesis architecture:
+* **The Data Mutator Engine:** Engineered a standalone Python script (`generate_v3_data.py`) to programmatically scale the dataset from ~500 to over 1,000 leads, anchoring the temporal context strictly to Q1 2026 (April 1st).
+* **Enterprise Context Injection:** The script enriched the static data with realistic enterprise variables: generated `cost` margins, randomized `lead_source` attribution, and assigned dynamic `quarterly_quota` targets to each branch.
+
+### B. "Heuristic AI" & Prescriptive Action
+Rather than introducing heavy, latency-inducing Large Language Models (LLMs), I engineered a blazingly fast rules-based "Heuristic AI" in the FastAPI backend:
+* **Smart Summaries:** Developed an algorithmic engine that parses pipeline anomalies and generates plain-English executive summaries (Pacing, Risk, and Action items) using zero-latency math and string interpolation.
+* **Multi-Variable Deal Health (0-100):** Replaced basic idle-time alerts with a weighted algorithm. The engine dynamically calculates a Health Score based on deal value (positive weight), days stagnant (negative weight), and funnel stage proximity.
+* **Next Best Action (NBA) Engine:** Programmed the backend to prescribe specific operational tasks (e.g., "Send Model Comparison Sheet" vs. "Manager Intervention") based on the cross-section of a deal's stage and its idle duration.
+
+### C. Target Pacing & Zero-Dependency UI
+Revenue numbers lack meaning without operational targets. I introduced quota tracking while protecting the React bundle size:
+* **Context-Aware Pacing:** The math explicitly rewards reps for secured pipeline: `(Delivered + Order Placed) / Dynamic Quota`. The denominator intelligently swaps between the Global Company Quota and specific Branch Quotas based on user navigation.
+* **Zero-Dependency Visualizations:** To prevent dashboard bloat, I avoided heavy third-party charting libraries for the new metrics. The Target Pacing gauge was built using pure native HTML `<svg>` elements and dynamic CSS `strokeDashoffset`, rendering the visual instantly with zero external dependencies.
+
+### D. Server-Side Aggregation (The "Dumb" Client)
+To guarantee the UI remains highly performant as data scales, I executed a strict separation of concerns:
+* **Heavy Python, Light React:** Shifted 100% of the advanced computation (Health Scoring, NBA generation, Quota Pacing math, Summary generation) to the FastAPI layer. The React frontend now operates as a high-speed "dumb" presentation layer that simply receives numbers and paints them to the DOM, ensuring fluid performance even on lower-end devices.
