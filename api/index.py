@@ -69,7 +69,6 @@ def get_metrics(
     simulated_now = datetime.fromisoformat(generated_at_str.replace("Z", "")) if generated_at_str else datetime.now()
     formatted_current_date = simulated_now.strftime("%b %d, %Y")
 
-    # Time Filter for general metrics
     time_filtered_leads = all_leads
     if timeframe != "all":
         cutoff_start = None
@@ -89,7 +88,6 @@ def get_metrics(
 
     time_delivered_leads = [l for l in time_filtered_leads if l["status"] == "delivered"]
     
-    # Leaderboards
     branch_perf = []
     for b in branches:
         b_leads = [l for l in time_delivered_leads if l.get("branch_id") == b["id"]]
@@ -166,15 +164,11 @@ def get_metrics(
     product_mix_chart = [{"name": k, "revenue": v["revenue"], "units": v["units"]} for k, v in product_mix.items()]
     marketing_roi_chart = [{"source": k, "win_rate": int((v["won"]/v["total"])*100) if v["total"]>0 else 0, "leads": v["total"]} for k, v in marketing_roi.items()]
 
-    # ==========================================
-    # NEW: Historical Quarterly Pacing Engine
-    # ==========================================
     active_quota = data.get('company_quarterly_quota', 100000000)
     if branch_id != "all":
         branch_data = next((b for b in branches if b['id'] == branch_id), None)
         active_quota = branch_data.get('quarterly_quota', 50000000) if branch_data else 50000000
 
-    # Get leads bypassing the time filter, but keeping branch/rep filters
     pacing_leads = all_leads
     if branch_id != "all": pacing_leads = [l for l in pacing_leads if l.get("branch_id") == branch_id]
     if rep_id != "all": pacing_leads = [l for l in pacing_leads if l.get("assigned_to") == rep_id]
@@ -200,15 +194,11 @@ def get_metrics(
             "pacing": pacing
         })
     
-    # Sort chronologically descending (e.g. Q2 2026 -> Q1 2026 -> Q4 2025)
     pacing_history.sort(key=lambda x: (int(x["quarter"][-4:]), int(x["quarter"][1])), reverse=True)
     
-    # Fallback if brand new system with zero historical sales
     if not pacing_history:
         current_q = (simulated_now.month - 1) // 3 + 1
         pacing_history.append({"quarter": f"Q{current_q} {simulated_now.year}", "revenue": 0, "quota": active_quota, "pacing": 0})
-
-    # ==========================================
 
     active_pipeline = []
     active_leads = [l for l in fully_filtered_leads if l["status"] not in ["delivered", "lost"]]
@@ -236,15 +226,72 @@ def get_metrics(
     stagnant_leads = [l for l in active_pipeline if l["days_stagnant"] >= bottleneck_days and l["stage"] != "Order Placed"]
 
     capital_at_risk = sum([l['value'] for l in stagnant_leads if l["days_stagnant"] >= bottleneck_days])
-    critical_count = len([l for l in stagnant_leads if l["days_stagnant"] >= 7])
+    current_pacing = pacing_history[0] if pacing_history else {"quarter": "Current", "pacing": 0, "quota": 0, "revenue": 0}
     
-    current_pacing = pacing_history[0] if pacing_history else {"quarter": "Current", "pacing": 0}
-    
-    summaries = [
-        f"🎯 Pacing: You are at {current_pacing['pacing']}% of your {current_pacing['quarter']} revenue target.",
-        f"⚠️ Risk: There are {critical_count} critical deals putting {format_currency(capital_at_risk)} at risk.",
-        f"💡 Action: Reassigning the top 3 bottlenecks could unblock {format_currency(sum(l['value'] for l in stagnant_leads[:3]))}."
-    ]
+    # ==========================================
+    # WEIGHTED PRIORITY AI ENGINE
+    # ==========================================
+    insights_pool = []
+
+    # 1. Pacing Gap
+    if current_pacing.get('pacing', 0) < 100:
+        gap = current_pacing.get('quota', 0) - current_pacing.get('revenue', 0)
+        insights_pool.append({"score": 90 if current_pacing.get('pacing', 0) < 80 else 70, "text": f"🎯 Pacing Alert: You are {current_pacing.get('pacing', 0)}% to goal. A gap of {format_currency(gap)} remains for the quarter."})
+    else:
+        insights_pool.append({"score": 60, "text": f"🏆 Goal Crushed: You have exceeded the quarterly target by {current_pacing.get('pacing', 0) - 100}%. Excellent pacing."})
+
+    # 2. Capital at Risk 
+    if capital_at_risk > 1000000:
+        insights_pool.append({"score": 95, "text": f"⚠️ High Risk: {format_currency(capital_at_risk)} is currently trapped in stagnant deals (idle for {bottleneck_days}+ days)."})
+    elif capital_at_risk > 0:
+        insights_pool.append({"score": 50, "text": f"⚠️ Monitor: {format_currency(capital_at_risk)} is sitting in idle pipeline stages."})
+
+    # 3. Actionable Bottleneck
+    if stagnant_leads:
+        top_stagnant_value = sum(l['value'] for l in stagnant_leads[:3])
+        insights_pool.append({"score": 85, "text": f"💡 Immediate Action: Reassigning or engaging the top 3 stagnant deals could unlock {format_currency(top_stagnant_value)}."})
+
+    # 4. Sales Velocity
+    if avg_velocity > 25:
+        insights_pool.append({"score": 80, "text": f"⏳ Sluggish Cycles: Average time-to-close is high ({int(avg_velocity)} days). Review negotiation friction."})
+    elif avg_velocity > 0:
+        insights_pool.append({"score": 40, "text": f"⚡ Velocity: Deals are closing efficiently at an average of {int(avg_velocity)} days."})
+
+    # 5. Conversion Rate
+    if conversion_rate < 15:
+        insights_pool.append({"score": 88, "text": f"📉 Conversion Drop: Win rate is currently {conversion_rate}%. Consider reviewing top-of-funnel lead quality."})
+    elif conversion_rate >= 20:
+        insights_pool.append({"score": 55, "text": f"📈 Strong Conversion: Win rate is healthy at {conversion_rate}%, indicating high-quality lead engagement."})
+
+    # 6. Rep Burnout Risk
+    overloaded_reps = [r['name'] for r in top_reps if r.get('active_leads', 0) > 15]
+    if overloaded_reps:
+        names = ", ".join(overloaded_reps[:2])
+        insights_pool.append({"score": 92, "text": f"🔥 Burnout Risk: {names} are juggling >15 active deals. Re-route new inbound leads immediately."})
+
+    # 7. Marketing ROI Focus
+    if marketing_roi_chart:
+        best_source = max(marketing_roi_chart, key=lambda x: x['win_rate'])
+        if best_source['win_rate'] > 0:
+            insights_pool.append({"score": 65, "text": f"📢 Marketing ROI: '{best_source['source']}' is your highest converting channel at {best_source['win_rate']}%. Double down on this spend."})
+
+    # 8. Product Concentration Risk
+    if product_mix_chart and total_revenue > 0:
+        top_product = max(product_mix_chart, key=lambda x: x['revenue'])
+        if top_product['revenue'] > (total_revenue * 0.5):
+            insights_pool.append({"score": 75, "text": f"🚗 Inventory Risk: {top_product['name']} accounts for over 50% of revenue. Diversify marketing to push other models."})
+
+    # 9. Top Branch Performance
+    if top_branches and branch_id == "all":
+        top_branch = top_branches[0]
+        insights_pool.append({"score": 45, "text": f"🏅 Branch Leader: {top_branch['name']} is driving pipeline with {format_currency(top_branch['revenue'])} in revenue."})
+
+    # 10. Best Month Comparison
+    if best_month:
+        insights_pool.append({"score": 30, "text": f"📅 Historical Context: Your highest grossing month on record remains {best_month['month']} ({format_currency(best_month['revenue'])})."})
+
+    insights_pool.sort(key=lambda x: x['score'], reverse=True)
+    smart_summaries = [insight['text'] for insight in insights_pool[:3]]
 
     funnel_stages = ["new", "contacted", "test_drive", "negotiation", "order_placed"]
     pipeline_funnel = [{"stage": s.replace("_", " ").title(), "count": len([l for l in active_leads if l["status"] == s])} for s in funnel_stages]
@@ -257,13 +304,15 @@ def get_metrics(
         "conversion_rate": round(conversion_rate, 1),
         "total_deliveries": len(delivered_leads),
         "total_leads": len(fully_filtered_leads), 
-        "pacing_history": pacing_history, # NEW: Sends historical quarters
+        "active_quota": active_quota, 
+        "quota_pacing": current_pacing['pacing'] if current_pacing else 0, 
+        "pacing_history": pacing_history, 
         "best_month": best_month, 
         "velocity": int(avg_velocity), 
         "capital_at_risk": capital_at_risk, 
         "product_mix": product_mix_chart, 
         "marketing_roi": marketing_roi_chart, 
-        "smart_summaries": summaries, 
+        "smart_summaries": smart_summaries, 
         "stagnant_leads": stagnant_leads,
         "active_pipeline": active_pipeline,
         "pipeline_funnel": pipeline_funnel,
