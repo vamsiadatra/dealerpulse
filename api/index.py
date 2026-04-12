@@ -259,10 +259,9 @@ def get_metrics(
 
     # 5. Conversion Rate
     if conversion_rate < 15:
-        insights_pool.append({"score": 88, "text": f"📉 Conversion Drop: Win rate is currently {conversion_rate}%. Consider reviewing top-of-funnel lead quality."})
+        insights_pool.append({"score": 88, "text": f"📉 Conversion Drop: Win rate is currently {conversion_rate:.1f}%. Consider reviewing top-of-funnel lead quality."})
     elif conversion_rate >= 20:
-        insights_pool.append({"score": 55, "text": f"📈 Strong Conversion: Win rate is healthy at {conversion_rate}%, indicating high-quality lead engagement."})
-
+        insights_pool.append({"score": 55, "text": f"📈 Strong Conversion: Win rate is healthy at {conversion_rate:.1f}%, indicating high-quality lead engagement."})
     # 6. Rep Burnout Risk
     overloaded_reps = [r['name'] for r in top_reps if r.get('active_leads', 0) > 15]
     if overloaded_reps:
