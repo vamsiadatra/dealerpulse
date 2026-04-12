@@ -20,7 +20,6 @@ export default function Dashboard() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [bottleneckDays, setBottleneckDays] = useState(7); 
-  const [conversionLift, setConversionLift] = useState(5); 
   const [searchTerm, setSearchTerm] = useState("");
   
   const [sortConfig, setSortConfig] = useState({ key: 'days_stagnant', direction: 'desc' });
@@ -28,9 +27,9 @@ export default function Dashboard() {
   const [branchSort, setBranchSort] = useState('revenue'); 
   const [productMixSort, setProductMixSort] = useState('revenue'); 
   const [boardroomMode, setBoardroomMode] = useState(false);
-  const [showAI, setShowAI] = useState(false);
   
-  // RESTORED: Independent state for the Target Pacing Tile
+  // NEW: Numerical state for cycling through insights
+  const [insightPage, setInsightPage] = useState(0); 
   const [selectedQuarter, setSelectedQuarter] = useState("");
 
   useEffect(() => {
@@ -44,7 +43,7 @@ export default function Dashboard() {
   const handleStateReset = () => {
     setBranchFilter("all"); setRepFilter("all"); setTimeFilter("all"); setStartDate(""); setEndDate(""); setBottleneckDays(7); setSearchTerm(""); 
     setSortConfig({ key: 'days_stagnant', direction: 'desc' }); 
-    setSelectedQuarter(""); // RESTORED: Clears quarter selection
+    setSelectedQuarter(""); 
   };
 
   const fetchData = useCallback(() => {
@@ -59,7 +58,7 @@ export default function Dashboard() {
         setData(json); 
         setLoading(false); 
         setError(null);
-        setShowAI(false); 
+        setInsightPage(0); // Reset insights on new data load
       }).catch(err => {
         setError(err.message); setLoading(false);
       });
@@ -146,7 +145,6 @@ export default function Dashboard() {
 
   const PIE_COLORS = ['#1E3A8A', '#F59E0B', '#10B981', '#E11D48', '#8B5CF6', '#14B8A6', '#F97316', '#06B6D4', '#4C1D95', '#84CC16', '#BE123C', '#3B82F6'];
 
-  // RESTORED: Pacing Quarter Logic
   const availableQuarters = data?.pacing_history || [];
   const activePacing = availableQuarters.find(q => q.quarter === selectedQuarter) || availableQuarters[0] || { pacing: 0, revenue: 0, quota: 0, quarter: "N/A" };
 
@@ -191,8 +189,9 @@ export default function Dashboard() {
 
       <div className={`max-w-[1600px] w-full mx-auto px-6 space-y-6 ${boardroomMode ? 'mt-6' : 'mt-8'}`}>
         
-        {data?.smart_summaries && (
-          <div className="bg-gradient-to-r from-indigo-900 to-slate-900 p-5 rounded-2xl shadow-lg flex flex-col md:flex-row items-center gap-6 text-white border border-indigo-800 transition-all min-h-[90px]">
+        {/* UPGRADED: Interactive Rotating AI Insights */}
+        {data?.smart_summaries && data.smart_summaries.length > 0 && (
+          <div className="bg-gradient-to-r from-indigo-900 to-slate-900 p-5 rounded-2xl shadow-lg flex flex-col md:flex-row items-center gap-6 text-white border border-indigo-800 transition-all min-h-[90px] relative overflow-hidden">
              <div className="flex items-center gap-3 shrink-0">
                 <Sparkles className="text-amber-400 w-8 h-8 animate-pulse" />
                 <div>
@@ -201,18 +200,35 @@ export default function Dashboard() {
                 </div>
              </div>
              
-             {!showAI ? (
+             {insightPage === 0 ? (
                <div className="flex-grow flex justify-center md:justify-start border-l border-indigo-800/50 pl-6">
-                  <button onClick={() => setShowAI(true)} className="cursor-pointer bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold px-6 py-2 rounded-lg transition-colors flex items-center gap-2 shadow-md">
+                  <button onClick={() => setInsightPage(1)} className="cursor-pointer bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold px-6 py-2 rounded-lg transition-colors flex items-center gap-2 shadow-md">
                     <Sparkles className="w-4 h-4" /> Generate Insights
                   </button>
                </div>
              ) : (
-               <div className="flex-grow grid grid-cols-1 md:grid-cols-3 gap-4 border-l border-indigo-800/50 pl-6 animate-in fade-in duration-500">
-                  {data.smart_summaries.map((summary, idx) => (
+               <div className="flex-grow grid grid-cols-1 md:grid-cols-3 gap-4 border-l border-indigo-800/50 pl-6 pr-16 animate-in fade-in duration-500">
+                  {data.smart_summaries.slice((insightPage - 1) * 3, insightPage * 3).map((summary, idx) => (
                       <div key={idx} className="text-sm font-medium text-slate-200 leading-snug">{summary}</div>
                   ))}
                </div>
+             )}
+
+             {/* Small rotating action button in the bottom right */}
+             {insightPage > 0 && (
+               <button 
+                  onClick={() => {
+                     // Check if there are more insights to show. If not, loop back to page 1.
+                     if (insightPage * 3 < data.smart_summaries.length) {
+                         setInsightPage(prev => prev + 1);
+                     } else {
+                         setInsightPage(1);
+                     }
+                  }}
+                  className="absolute bottom-2 right-2 text-[10px] font-bold tracking-wider uppercase bg-indigo-800/80 hover:bg-indigo-700 px-3 py-1.5 rounded-lg text-indigo-200 transition-colors cursor-pointer border border-indigo-600/50 flex items-center gap-1 shadow-sm"
+               >
+                 {insightPage * 3 < data.smart_summaries.length ? 'Next Insights ⏭️' : 'Loop Back 🔄'}
+               </button>
              )}
           </div>
         )}
@@ -273,7 +289,6 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-7 gap-4">
               <StatCard title="Total Revenue" value={formatCurrency(data.total_revenue)} subtitle={`+ ${formatCurrency(data.pending_revenue)} Pending`} icon={<IndianRupee className="text-emerald-600 w-5 h-5" />} tooltip="Recognized revenue from delivered vehicles. Pending revenue represents placed orders awaiting logistics."/>
               
-              {/* RESTORED: INDEPENDENT TARGET PACING TILE */}
               <div className="bg-white p-4 rounded-2xl shadow-[0_2px_10px_-3px_rgba(6,81,237,0.05)] border border-slate-200 flex flex-col justify-center relative">
                  <div className="flex items-center gap-1 mb-2">
                    <select 

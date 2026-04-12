@@ -291,7 +291,7 @@ def get_metrics(
         insights_pool.append({"score": 30, "text": f"📅 Historical Context: Your highest grossing month on record remains {best_month['month']} ({format_currency(best_month['revenue'])})."})
 
     insights_pool.sort(key=lambda x: x['score'], reverse=True)
-    smart_summaries = [insight['text'] for insight in insights_pool[:3]]
+    smart_summaries = [insight['text'] for insight in insights_pool]
 
     funnel_stages = ["new", "contacted", "test_drive", "negotiation", "order_placed"]
     pipeline_funnel = [{"stage": s.replace("_", " ").title(), "count": len([l for l in active_leads if l["status"] == s])} for s in funnel_stages]
