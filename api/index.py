@@ -22,9 +22,9 @@ def format_currency(value):
 
 def load_data():
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    file_path = os.path.join(current_dir, 'v3_dealership_data.json')
+    file_path = os.path.join(current_dir, 'v3_dealership_data_500.json')
     if not os.path.exists(file_path):
-        file_path = os.path.join(current_dir, 'dealership_data.json')
+        file_path = os.path.join(current_dir, 'v3_dealership_data.json')
     with open(file_path, 'r') as f:
         return json.load(f)
 
