@@ -155,7 +155,7 @@ def get_metrics(
             product_mix[model]["revenue"] += l.get("deal_value", 0)
             product_mix[model]["units"] += 1
         
-        source = l.get("lead_source", "Unknown")
+        source = l.get("source", "Unknown")
         if source not in marketing_roi: marketing_roi[source] = {"total": 0, "won": 0}
         marketing_roi[source]["total"] += 1
         if l["status"] in ["delivered", "order_placed"]:
@@ -219,7 +219,7 @@ def get_metrics(
             "value": lead.get("deal_value", 0),
             "health_score": health,
             "nba": nba,
-            "source": lead.get("lead_source", "Unknown")
+            "source": lead.get("source", "Unknown")
         })
         
     active_pipeline = sorted(active_pipeline, key=lambda x: x["days_stagnant"], reverse=True)
